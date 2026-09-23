@@ -1,0 +1,139 @@
+# Campus Food Availability: app + metrics (Prometheus, Grafana, Node Exporter) + logs (Filebeat, Elasticsearch, Kibana)
+# Start:  docker compose up -d --build
+# Stop:   docker compose down          (add -v to also delete all stored data)
+
+name: campus-food
+
+services:
+  # ------------------------------------------------------------------ the application
+  api:
+    build: ./api
+    container_name: campus-app          # Filebeat keeps only logs from this container name
+    ports: ["8000:8000"]
+    volumes:
+      - api-data:/data                  # SQLite file survives restarts
+    logging:                            # Docker's own log files: rotate so they cannot fill the disk
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ metrics
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: campus-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d      # metrics older than 7 days are deleted
+      - --web.enable-admin-api                # only so E2 clean-up can delete the demo series
+    ports: ["9091:9090"]
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on: [api]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: campus-grafana
+    ports: ["3001:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/app-and-business.json
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: campus-node-exporter
+    hostname: asad-laptop                # the machine being measured (also set as label "host" in prometheus.yml)
+    pid: host
+    command: ["--path.rootfs=/host"]
+    volumes:
+      - /:/host:ro
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ logs
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: campus-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"    # local demo only
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports: ["9201:9200"]
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  es-setup:                              # runs once: retention policy + index template
+    image: curlimages/curl:8.10.1
+    entrypoint: ["sh", "/setup.sh"]
+    volumes:
+      - ./monitoring/elasticsearch/setup.sh:/setup.sh:ro
+    depends_on:
+      elasticsearch: { condition: service_healthy }
+    restart: "no"
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.0
+    container_name: campus-filebeat
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./monitoring/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - filebeat-data:/usr/share/filebeat/data     # registry: remembers how far each file was read
+    depends_on:
+      es-setup: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.0
+    container_name: campus-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports: ["5602:5601"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:5601/api/status | grep -q '\"level\":\"available\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      elasticsearch: { condition: service_healthy }
+    restart: unless-stopped
+
+  kibana-setup:                          # runs once: data view + saved searches
+    image: curlimages/curl:8.10.1
+    entrypoint: ["sh", "/setup.sh"]
+    volumes:
+      - ./monitoring/kibana/setup.sh:/setup.sh:ro
+    depends_on:
+      kibana: { condition: service_healthy }
+    restart: "no"
+
+  # ------------------------------------------------------------------ Experiment E2 (only starts when asked)
+  cardinality-demo:
+    build: ./experiments/cardinality
+    container_name: cardinality-demo
+    profiles: ["experiments"]
+    environment:
+      MODE: ${CARDINALITY_MODE:-request_id}
+
+volumes:
+  api-data:
+  prometheus-data:
+  grafana-data:
+  es-data:
+  filebeat-data:

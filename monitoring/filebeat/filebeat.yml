@@ -1,0 +1,59 @@
+# Pipeline: app stdout (JSON) -> Docker json-file log -> Filebeat -> Elasticsearch -> Kibana
+
+filebeat.inputs:
+  - type: container                              # understands Docker's json-file wrapper
+    paths:
+      - /var/lib/docker/containers/*/*.log
+
+processors:
+  # 1. Attach container.name so we can keep only the app's logs.
+  - add_docker_metadata: ~
+  - drop_event:
+      when:
+        not:
+          equals:
+            container.name: campus-app
+
+  # 2. The app's JSON line arrives as the plain string "message". Keep it untouched as event.original.
+  - rename:
+      fields:
+        - { from: message, to: event.original }
+      ignore_missing: true
+      fail_on_error: false
+
+  # 3. Parse that string into real fields: app.time, app.service, app.severity, app.request_id, ...
+  - decode_json_fields:
+      fields: ["event.original"]
+      target: "app"
+      max_depth: 2
+      overwrite_keys: true
+      add_error_key: true                        # unparseable lines get error.message instead of vanishing
+
+  # 4. Use the time the app logged as the event time, not the time Filebeat read it.
+  - timestamp:
+      field: app.time
+      layouts: ["2006-01-02T15:04:05.999Z"]
+      ignore_missing: true
+      ignore_failure: true
+
+  # 5. Put the human readable text back into the top level "message" field.
+  - copy_fields:
+      fields:
+        - { from: app.message, to: message }
+      fail_on_error: false
+      ignore_missing: true
+
+  # 6. Remove fields nobody searches on.
+  - drop_fields:
+      fields: ["log", "input", "agent", "ecs", "host", "container.labels", "app.message"]
+      ignore_missing: true
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "campus-food-logs-%{+yyyy.MM.dd}"      # one index per day, deleted by the ILM policy after 7 days
+
+# We manage the template and retention policy ourselves (monitoring/elasticsearch/setup.sh).
+setup.ilm.enabled: false
+setup.template.enabled: false
+
+logging.level: info

@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 5s        # short on purpose: experiments need several scrapes per stage
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: campus-food-api
+    static_configs:
+      - targets: ["campus-app:8000"]      # serves /metrics
+
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          host: asad-laptop               # name of the machine being measured (keep same as compose hostname)
+
+  - job_name: prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["localhost:9090"]       # gives prometheus_tsdb_head_series for E2
+
+  - job_name: cardinality-demo            # shows as DOWN until the E2 profile is started
+    static_configs:
+      - targets: ["cardinality-demo:8001"]
