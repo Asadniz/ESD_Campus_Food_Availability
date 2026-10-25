@@ -57,9 +57,10 @@ docker compose ps
 
 Open:
 - API: http://localhost:8000/docs (interactive Swagger UI)
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin / admin) — the dashboard is already provisioned
-- Kibana: http://localhost:5601 (data view `Campus food logs` and saved searches are already there)
+- Prometheus: http://localhost:9091
+- Grafana: http://localhost:3001 (admin / admin) — the dashboard is already provisioned
+- Kibana: http://localhost:5602 (data view `Campus food logs` and saved searches are already there)
+- Elasticsearch: http://localhost:9201 
 
 ## Use it
 
