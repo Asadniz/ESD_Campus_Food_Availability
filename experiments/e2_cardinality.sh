@@ -2,7 +2,7 @@
 # Experiment E2: cardinality explosion, then recovery.
 # Run 1 (WITH request_id label) -> stop -> Run 2 (WITHOUT the label) -> compare series counts.
 set -euo pipefail
-PROM=${PROM:-http://localhost:9090}
+PROM=${PROM:-http://localhost:9091}
 
 series_count() {
   curl -s "$PROM/api/v1/query" --data-urlencode 'query=count(demo_requests_total)' \

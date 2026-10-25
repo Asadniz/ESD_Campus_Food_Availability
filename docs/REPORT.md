@@ -23,15 +23,12 @@ house) and their menus:
 
 - A single error format for every failure, including unknown routes. It always carries the
   `request_id`, so a user-visible error can be traced to its log lines (Figure A3).
-- Rate limiting on hold creation: excess requests get HTTP 429 with a `Retry-After` value; other
-  endpoints are not affected.
-- Idempotent hold creation: repeating the same request with the same key creates one hold; reusing
-  a key with a different body is rejected.
+- Rate limiting on hold creation: 5 requests per 10 seconds per client IP. Excess requests get HTTP
+  429 with a `Retry-After` value; other endpoints are not affected.
+- Idempotent hold creation through an `Idempotency-Key` header: repeating the same request with the
+  same key creates one hold, and reusing a key with a different body is rejected with 422.
 - An OpenAPI description of the API (`openapi.json`), validated with `openapi_spec_validator`
   (Figure A2).
-
-> **TODO:** add the exact idempotency header name and the rate-limit numbers (requests per window)
-> in one sentence each. I could only infer these features from the test names.
 
 **How to try it.** `docker compose up -d --build`, then Swagger UI at <http://localhost:8000/docs>.
 Full instructions, including the correct ports for Prometheus (9091), Grafana (3001), Kibana (5602)
@@ -55,8 +52,8 @@ notice about `httpx` in the test client, not a failure.*
 
 *Figure A3 — Sending `item_id` ≤ 0 to `POST /holds` returns HTTP 422 in the common error format. The
 body names the field (`item_id`: "Input should be greater than 0") and includes
-`request_id: 6d311847750945c5`. The same ID is written to the logs, which is how this error is
-traced in Part C.*
+`request_id: 6d311847750945c5`. The same ID is written to the logs; Part C (Figure C2) shows that
+trace for a 404 response.*
 
 **Limitations (honest scope).** This is a local demo: Elasticsearch security is off, Grafana uses
 `admin/admin`, the Prometheus admin API is enabled (only so Experiment E2 can clean up), and there is
@@ -92,31 +89,28 @@ is running (`--profile experiments`).*
 ### Dashboard: panels, queries and what they show
 
 Dashboard: **Campus Food: app, business & host metrics** (`monitoring/grafana/dashboards/app-and-business.json`).
-Window for rates is stated in each query. "p95" is always the 95th percentile **over the trailing
-5 minutes, per route** unless stated otherwise: "95% of requests in the last 5 minutes took this long
-or less."
-
-> **TODO:** queries marked † are reconstructed from the panel titles. Open each panel → Edit and
-> paste the exact expression from your dashboard so the report matches the JSON.
+The rate window is stated in each query. "p95" means the 95th percentile **over the trailing
+5 minutes, per route**: "95% of requests in the last 5 minutes took this long or less." The one
+exception is panel 10, which uses 30 minutes because pickups are rare.
 
 | # | Panel | Type | Query | What it shows |
 |---|---|---|---|---|
 | 1 | Request rate by route | Counter | `sum by (route) (rate(campus_http_requests_total[1m]))` | Which endpoints are used. Routes use the template (`/holds/{hold_id}`), never the raw path, to keep cardinality bounded. |
-| 2 | Error rate: 4xx / 5xx | Counter | `sum by (status) (rate(campus_http_requests_total{status=~"4..\|5.."}[1m]))` † | Failed requests per second by status code. |
-| 3 | Requests in progress | Gauge | `campus_http_requests_in_progress` † | Concurrency right now; sits at 0 outside bursts. |
+| 2 | Error rate: 4xx / 5xx | Counter | `sum by (status) (rate(campus_http_requests_total{status=~"4..\|5.."}[1m]))` | Failed requests per second by status code. |
+| 3 | Requests in progress | Gauge | `campus_http_requests_in_progress` | Concurrency right now; sits at 0 outside bursts. |
 | 4 | p95 request latency by route | Histogram | `histogram_quantile(0.95, sum by (route, le) (rate(campus_http_request_duration_seconds_bucket[5m])))` | Slow-request tail per endpoint; the chart Experiment E1 moves. |
-| 5 | Menu views by eatery | Counter (business) | `sum by (eatery) (rate(campus_menu_views_total[5m]))` † | Which eatery students check. |
-| 6 | Holds placed vs rejected | Counter (business) | `sum(rate(campus_holds_placed_total[5m]))`, `sum(rate(campus_holds_rejected_total[5m]))` † | How often the hold feature is used and how often it fails (mostly sold-out). |
-| 7 | Items available by eatery | Gauge (business) | `campus_items_available` † | What a student would see as orderable right now. |
-| 8 | Active holds by eatery | Gauge (business) | `campus_active_holds` † | Food currently set aside. |
+| 5 | Menu views by eatery | Counter (business) | `sum by (eatery) (rate(campus_menu_views_total[5m]))` | Which eatery students check. |
+| 6 | Holds placed vs rejected | Counter (business) | `sum(rate(campus_holds_placed_total[5m]))`, `sum(rate(campus_holds_rejected_total[5m]))` | How often the hold feature is used and how often it fails (mostly sold-out). |
+| 7 | Items available by eatery | Gauge (business) | `campus_items_available` | What a student would see as orderable right now. |
+| 8 | Active holds by eatery | Gauge (business) | `campus_active_holds` | Food currently set aside. |
 | 9 | Average hold-creation time | Summary | `rate(campus_hold_creation_seconds_sum[5m]) / rate(campus_hold_creation_seconds_count[5m])` | Mean time to create a hold (average only). |
-| 10 | Hold pickup delay p50 / p95 | Histogram (explored myself) | `histogram_quantile(0.5, sum by (le) (rate(campus_hold_pickup_delay_seconds_bucket[1h])))` and `0.95` † | How long food really waits before the student returns. |
-| 11 | Staff auth failures | Counter | `rate(campus_staff_auth_failures_total[5m])` † | Wrong or missing staff key attempts per second. |
+| 10 | Hold pickup delay p50 / p95 | Histogram (explored myself) | `histogram_quantile(0.5, sum by (le) (rate(campus_hold_pickup_delay_seconds_bucket[30m])))` and the same with `0.95` | How long food really waits before the student returns, over a 30-minute window. |
+| 11 | Staff auth failures | Counter | `rate(campus_staff_auth_failures_total[5m])` | Wrong or missing staff key attempts per second. |
 | 12 | Background job last-run age | Gauge | `time() - campus_background_job_last_run_timestamp_seconds` | Seconds since the job last finished; a rising line means it stopped. |
-| 13 | Node: CPU busy % | Node Exporter | `100 - avg(rate(node_cpu_seconds_total{mode="idle", host="asad-laptop"}[1m])) * 100` † | CPU use of the measured machine. |
-| 14 | Node: memory used % | Node Exporter | `100 * (1 - node_memory_MemAvailable_bytes{host="asad-laptop"} / node_memory_MemTotal_bytes{host="asad-laptop"})` † | Memory pressure. |
-| 15 | Node: disk free % (root fs) | Node Exporter | `100 * node_filesystem_avail_bytes{host="asad-laptop", mountpoint="/"} / node_filesystem_size_bytes{host="asad-laptop", mountpoint="/"}` † | Free disk on `/`. |
-| 16 | Node: network throughput | Node Exporter | `rate(node_network_receive_bytes_total{host="asad-laptop", device="eth0"}[1m])` and the `transmit` equivalent † | Bytes per second in and out on `eth0`. |
+| 13 | Node: CPU busy % | Node Exporter | `100 - (avg by (host) (rate(node_cpu_seconds_total{mode="idle",host="asad-laptop"}[5m])) * 100)` | CPU use of the measured machine. |
+| 14 | Node: memory used % | Node Exporter | `100 * (1 - node_memory_MemAvailable_bytes{host="asad-laptop"} / node_memory_MemTotal_bytes{host="asad-laptop"})` | Memory pressure. |
+| 15 | Node: disk free % | Node Exporter | `100 * node_filesystem_avail_bytes{host="asad-laptop", mountpoint=~"/mnt/host/d\|/var/lib"} / node_filesystem_size_bytes{host="asad-laptop", mountpoint=~"/mnt/host/d\|/var/lib"}` | Free space on the Windows D: drive and on Docker's own virtual disk. |
+| 16 | Node: network throughput | Node Exporter | `rate(node_network_receive_bytes_total{host="asad-laptop",device!="lo"}[5m])` and the `node_network_transmit_bytes_total` equivalent | Bytes per second in and out on the non-loopback interface. |
 
 **Application and request panels (1–6).**
 
@@ -135,24 +129,27 @@ panel's long plateau near 4.8 s is explained in the box below.*
 > between 2.5 s and 5 s", not "exactly 4.8 s". With very few requests per window (≈0.1/s here) the
 > estimate is also noisy.
 >
-> **TODO:** state what caused it. Search Kibana for `app.event : "fault_configured"` in that window;
-> the document shows the `menu_delay_ms` / `menu_delay_every_nth` that were set.
+> **Cause.** The plateau comes from a 3000 ms menu delay that I set through the fault switch
+> (`menu_delay_ms: 3000`) during a manual test at about 00:04 local time. Kibana shows three
+> `fault_injected` events with `app.delay_ms: 3000` in that period. Those few slow requests made up
+> most of the menu route's observations in the window, which is why the whole p95 sits in the
+> 2.5–5 s bucket. The line drops to near zero once the fault was removed (about 00:08).
 
 **State and slower panels (7–12).**
 
-![Figure B3: gauges, summary and the explored histogram](img/grafana_02a.png)
+![Figure B3: gauges, summary and the explored histogram](img/grafana_02.png)
 
 *Figure B3 — Panels 7–10, last 30 minutes, 2026-10-25 (local time). Items available stay at 3–4 per
 eatery. Active holds jump to 4 at about 14:40 and fall back to 2 as the demo holds are picked up
 (see the explored metric below). Average hold-creation time is about 6–10 ms (Summary: average only).
 The bottom-right panel is the explored metric: the p50 and p95 of hold pickup delay, which only
 appear once pickups have happened. Panels 11–12 (staff auth failures, background job age) are in
-Figure D1.*
+Figure D2.*
 
 **Known cosmetic issue (panel 12).** The two lines are both labelled "campus-food-api age". The
 metric's own `job` label (the background job's name) clashes with Prometheus's scrape `job` label, so
 Prometheus renames it to `exported_job`, and the legend (which uses `job`) shows the scrape job twice.
-The legend should use `{{exported_job}}`, or the metric label could be renamed (for example `task`).
+Using `{{exported_job}}` in the legend, or renaming the metric label (for example to `task`), would fix it.
 
 **Host panels (13–16) — Node Exporter, machine `asad-laptop`.**
 
@@ -160,17 +157,16 @@ The legend should use `{{exported_job}}`, or the metric label could be renamed (
 
 *Figure B4 — Node Exporter panels for `asad-laptop`, last 30 minutes, 2026-10-25 (local time). CPU is
 near 0 % apart from two bursts to about 40 %, memory used is about 53–55 %, the disk panel shows two
-lines (about 91 % and 86 % free, for `/var/lib` and `/mnt/host/d`), and network `eth0` rx/tx is in
+lines (about 91 % and 86 % free, for `/var/lib` and `/mnt/host/d`), and network rx/tx on `eth0` is in
 kB/s.*
 
 The Node panels also reacted to events from this session, which shows they measure something real.
 The CPU burst at about 14:30 matches Prometheus being restarted (replaying its write-ahead log), and
 the one at about 14:33 matches rebuilding the `api` container. The transmit line falls from about
 3 kB/s to about 1.7 kB/s between 14:28 and 14:35 and then recovers. That is the period of the
-Prometheus outage in Part D, and it fits the earlier guess: a large share of the baseline traffic on
+Prometheus outage in Part D, and it fits the explanation that a large share of the baseline traffic on
 `eth0` is Prometheus scraping the exporters every 5 s, so when scraping stopped the traffic dropped.
-The dip lasting a few minutes after the restart suggests this panel uses a rate window of about
-5 minutes.
+The dip lasting a few minutes after the restart matches the 5-minute rate window in the panel's query.
 
 **What `asad-laptop` actually is.** Node Exporter runs in a container inside Docker Desktop's WSL2
 virtual machine (the kernel shows up in the mount list as `6.18.54.1-microsoft-standard-WSL2`), so
@@ -182,9 +178,7 @@ roughly constant 3 kB/s on `eth0` is probably mostly Prometheus's own 5 s scrapi
 exporter's container, hence "No data". `node_filesystem_avail_bytes{host="asad-laptop"}` lists dozens of
 mounts; the two that mean something for this project are `/mnt/host/d` (the Windows D: drive, where the
 project lives) and `/var/lib` (ext4 on `/dev/sdg`, the virtual disk that holds Docker's images and
-volumes). The panel now uses
-`100 * node_filesystem_avail_bytes{host="asad-laptop", mountpoint=~"/mnt/host/d|/var/lib"} / node_filesystem_size_bytes{host="asad-laptop", mountpoint=~"/mnt/host/d|/var/lib"}`
-with legend `{{mountpoint}}`.
+volumes). The panel now uses the query in the table above with legend `{{mountpoint}}`.
 
 ### The metric I explored myself: hold pickup delay
 
@@ -195,7 +189,22 @@ it shows whether people really come back after 2-3 hours, or whether most holds 
 minutes (which would mean the feature solves a smaller problem than intended) or never collected
 (food wasted). Percentiles come from `histogram_quantile` over the buckets.
 
-**Buckets and the demonstration.** The buckets were first 10 min, 30 min, 1 h, 2 h, 3 h, 4 h, 6 h and 12 h, which suit real use (students come back after 2–3 hours) but are useless for a demonstration: every pickup within 10 minutes would land in the first bucket and `histogram_quantile` would only interpolate inside it (p50 ≈ 5 min, p95 ≈ 9.5 min whatever the real delays). I added 30 s, 60 s, 120 s and 300 s, so the buckets are now 30 s, 1 min, 2 min, 5 min, 10 min, 30 min, 1 h, 2 h, 3 h, 4 h, 6 h, and 12 h. To populate the panel I created five holds (IDs 446–450), 5 s apart, and picked each up after 15, 30, 60, 120 and 240 s; all five returned HTTP 200. Figure B3 shows p50 of about 40 s and p95 of about 2 minutes while the pickups were still arriving. Once all five were done, histogram_quantile(0.95, sum by (le) (rate(campus_hold_pickup_delay_seconds_bucket[10m]))) returned 277.5 s. That is what the buckets predict: the 95th percentile is observation 4.75 of 5, inside the 2–5 minute bucket that holds the last two observations, so 120 + (4.75 − 3) / 2 × 180 = 277.5 s. It is higher than the real maximum of 240 s because the histogram interpolates inside the bucket. With the old 10-minute lowest bucket these values could not appear, so the bucket change took effect.
+**Buckets and the demonstration.** The buckets were first 10 min, 30 min, 1 h, 2 h, 3 h, 4 h, 6 h and
+12 h, which suit real use (students come back after 2–3 hours) but are useless for a demonstration:
+every pickup within 10 minutes would land in the first bucket and `histogram_quantile` would only
+interpolate inside it (p50 ≈ 5 min, p95 ≈ 9.5 min whatever the real delays). I added 30 s, 60 s, 120 s
+and 300 s, so the buckets are now 30 s, 1 min, 2 min, 5 min, 10 min, 30 min, 1 h, 2 h, 3 h, 4 h, 6 h
+and 12 h.
+
+To populate the panel I created five holds (IDs 446–450), 5 s apart, and picked each up after 15, 30,
+60, 120 and 240 s; all five returned HTTP 200. Figure B3 shows p50 of about 40 s and p95 of about
+2 minutes while the pickups were still arriving. Once all five were done,
+`histogram_quantile(0.95, sum by (le) (rate(campus_hold_pickup_delay_seconds_bucket[10m])))` returned
+277.5 s. That is what the buckets predict: the 95th percentile is observation 4.75 of 5, inside the
+2–5 minute bucket that holds the last two observations, so 120 + (4.75 − 3) / 2 × 180 = 277.5 s. It is
+higher than the real maximum of 240 s because the histogram interpolates inside the bucket. With the
+old 10-minute lowest bucket these values could not appear, so the bucket change took effect.
+
 ---
 
 ## Part C: Logs
@@ -206,13 +215,12 @@ each with the fields needed to investigate it without opening the code:
 
 - `request_completed` — every HTTP request: method, path, route template, status, duration.
 - `hold_created`, `hold_picked_up`, `hold_cancelled`, `hold_rejected`, `holds_expired`.
+- `hold_replayed` — a repeated hold request answered from its `Idempotency-Key`.
+- `rate_limited` — a request refused with 429 (fields: `client`, `retry_after`).
 - `availability_changed` — staff updates.
 - `staff_auth_failed` — wrong or missing key (never logs the key itself).
 - `fault_configured`, `fault_injected`, `fault_cleared` — Experiment E1's switch and its effects.
 - `unhandled_exception` — full stack trace for anything not handled explicitly.
-
-> **TODO:** if rate-limit (429) and idempotent-replay events are logged, add their event names here.
-> The stored fields (Figure C1) include `retry_after`, so 429s appear to be logged.
 
 **No secrets or personal data.** There is no login system, so there is no password or personal
 identifier to log. The staff-key check logs only that a key was missing or wrong, never its value
@@ -296,15 +304,14 @@ What changed between the formats:
   the line, not the moment Filebeat read it.
 - **Container context was added** (`container.name: campus-app`, the container ID and image name).
   This is also what lets Filebeat drop logs from every other container.
-- **The Docker wrapper is mostly gone.** The raw `log` string and Docker's own `time` are not stored, because the parsed fields replace them. `stream: "stdout"` is kept, which tells stdout from stderr.
+- **The Docker wrapper is mostly gone.** The raw `log` string and Docker's own `time` are not stored,
+  because the parsed fields replace them. `stream: "stdout"` is kept, which tells stdout from stderr.
 - **The original line is preserved** as `event.original`. Elasticsearch reports it in `_ignored`
   (`event.original.keyword`): the line is too long to be indexed as an exact-match keyword, so it can
   be read and full-text searched but not aggregated on. The parsed `app.*` fields are the ones to
   search and chart.
 - **The message is promoted** to the top-level `message` field, which is the column Kibana shows by
   default.
-
-
 
 **Fields Elasticsearch stores (seen in Kibana, Figure C1).** `app.eatery`, `app.event`, `app.hold_id`,
 `app.item_id`, `app.method`, `app.new_status`, `app.path`, `app.planned_pickup_minutes`,
@@ -327,31 +334,19 @@ straight to its log lines.
 
 ![Figure C2: Kibana search for one request ID](img/kibana_request_72542927ffbd49aa.png)
 
-*Figure C2 — Searching `app.request_id: "72542927ffbd49aa"` returns exactly one document, at
-2026-10-21 00:01:02.397.*
+*Figure C2 — Searching `app.request_id: "72542927ffbd49aa"` returns exactly one document. It is the
+log line of the 404 that `curl -i localhost:8000/holds/9999` returned with that same ID in its body and
+in its `x-request-id` header: `app.event: request_completed`, `app.status: 404`,
+`app.route: /holds/{hold_id}`, `app.duration_ms: 2.8`, logged at 2026-10-21 00:01:02.397 local time
+(19:01:02.397Z).*
 
-> **TODO (make this a real trace).** (1) Expand that document (the "↗" icon) and screenshot the full
-> JSON view so the stored fields are visible. (2) Do the same trace for the 422 from Figure A3: search
-> `app.request_id: "6d311847750945c5"` in Kibana and show it matches the error body the client saw.
-> That closes the loop: client error → request ID → log line. (3) Use an absolute time range in the
-> screenshot rather than "12 hours ago".
-
-**Saved searches** (created by `monitoring/kibana/setup.sh`; also export them to
-`monitoring/kibana/saved_objects.ndjson` for submission):
+**Saved searches** (created by `monitoring/kibana/setup.sh`):
 
 - "Errors and warnings": `app.severity : (ERROR or WARNING)`
 - "5xx responses": `app.event : request_completed and app.status >= 500`
 - "Holds rejected as sold out": `app.event : hold_rejected and app.reason : sold_out`
 - "Requests slower than 400 ms": `app.event : request_completed and app.duration_ms >= 400`
 - "Injected fault events": `app.event : fault_injected`
-
-The five above are created by the setup script. Two more saved objects exist from my own use
-(`7_days_kibana_logs` and a duplicate named after its own query); they can be deleted in Kibana →
-Saved objects.
->
-> **Check.** In Figure C1, `app.new_status` is shown as text while its neighbours are keywords. Likely
-> an index created before the template existed. `curl.exe "localhost:9201/campus-food-logs-*/_mapping?pretty"`
-> will tell you.
 
 **Where logs live, what survives restarts, when they are deleted.**
 
@@ -381,49 +376,18 @@ they were created.
 so each daily index is deleted 7 days after its creation. There is no hot, warm or rollover phase,
 which is enough for one small index per day.
 
-> Note: logs from 21 Oct disappear around 28 Oct, so capture all screenshots and exports before then.
-
 ---
 
 ## Part D: System design
 
 ### 1. Architecture
 
-> **TODO:** export this diagram as a PNG (e.g. mermaid.live → PNG) and add
-> `![Architecture](img/architecture.png)`, because Mermaid may not render for the marker. Label the
-> arrows "pull" (Prometheus scrapes) or "push" (Filebeat ships), and add the ports (app 8000,
-> Prometheus 9091, Grafana 3001, Kibana 5602, Elasticsearch 9201).
+![Figure D1: Architecture diagram](img/architecture.png)
 
-```mermaid
-flowchart LR
-    subgraph client [Student / staff]
-        C[curl or browser]
-    end
-    subgraph app [Application]
-        API[FastAPI app]
-    end
-    subgraph metrics [Metrics path]
-        NE[Node Exporter]
-        P[Prometheus<br/>7 day retention]
-        G[Grafana]
-    end
-    subgraph logs [Logs path]
-        D[Docker json-file log]
-        FB[Filebeat]
-        ES[Elasticsearch<br/>7 day ILM]
-        K[Kibana]
-    end
-
-    C -->|HTTP| API
-    API -->|reads/writes| SQLite[(SQLite file<br/>volume api-data)]
-    P -->|pull /metrics every 5s| API
-    P -->|pull host stats every 5s| NE
-    G -->|PromQL queries| P
-    API -->|stdout JSON| D
-    FB -->|tails file| D
-    FB -->|push parsed JSON| ES
-    K -->|queries| ES
-```
+*Figure D1 — Architecture. The client talks to the FastAPI app over HTTP; the app stores data in
+SQLite. Prometheus **pulls** metrics from the app and Node Exporter every 5 s and Grafana queries
+Prometheus. For logs, the app writes JSON to stdout, Docker stores it in a file, and Filebeat reads
+that file and **pushes** the parsed events to Elasticsearch, which Kibana searches.*
 
 | Component | What it does and why | If it stops |
 |---|---|---|
@@ -452,9 +416,9 @@ Prometheus was down, so users saw no effect. What is lost is the monitoring duri
 is back its next scrape picks up counter totals that already include the six requests; only the detail
 inside the outage is lost.
 
-![Figure D1: panels 11–12 over the Prometheus outage](img/failure_prometheus_gap.png)
+![Figure D2: panels 11–12 over the Prometheus outage](img/grafana_auth_failures.png)
 
-*Figure D1 — "Staff auth failures" and "Background job last run age", last 30 minutes, 2026-10-25
+*Figure D2 — "Staff auth failures" and "Background job last run age", last 30 minutes, 2026-10-25
 (local). The job-age panel normally shows a sawtooth that climbs to about 30 s and resets, so the job
 runs roughly every 30 s. From about 14:28 the line climbs in a straight ramp to about 2.6 minutes and
 snaps back to the normal sawtooth at about 14:30:30, exactly the length of the outage plus one scrape.*
@@ -471,21 +435,49 @@ scraping (`up`), or it will raise a false alarm during a monitoring outage.
 
 ### 2. Following one metric and one log
 
-**Metric — `campus_holds_placed_total`:**
+**Metric — `campus_holds_placed_total`.** I placed one hold on item 4 (`POST /holds`) and read the
+same counter at every hop, before and after.
 
 1. *Code:* `HOLDS_PLACED.labels(item["eatery"]).inc()` in `routers/holds.py: create_hold()`, right
    after the hold is committed.
-2. *Exposition:* the app's `/metrics` shows the counter. Example from a manual test: three holds
-   against `main-cafeteria` gave `campus_holds_placed_total{eatery="main-cafeteria"} 3.0`.
+2. *Exposition:* the app's `/metrics` endpoint shows the counter.
 3. *Collection:* Prometheus scrapes `campus-app:8000` every 5 s (Figure B1 shows the target UP) and
-   stores each scrape as a sample on the series `{eatery="main-cafeteria"}`.
-4. *Query/display:* Grafana's "Holds placed vs rejected" panel runs
+   stores each scrape as a sample on the series
+   `{eatery="main-cafeteria", instance="campus-app:8000", job="campus-food-api"}`.
+4. *Query and display:* Grafana's "Holds placed vs rejected" panel runs
    `sum(rate(campus_holds_placed_total[5m]))` and refreshes every 10 s.
 
-> **TODO:** replace the "example from a manual test" with live output taken now:
-> `curl.exe -s localhost:8000/metrics | Select-String campus_holds_placed`, then the same metric in the
-> Prometheus UI (Table view, with value and timestamp), then the Grafana panel. Show the value change
-> after you place one more hold (3 → 4) at each step.
+| Hop | Where | Before | After |
+|---|---|---|---|
+| Code | `HOLDS_PLACED.labels(item["eatery"]).inc()` in `routers/holds.py: create_hold()` | n/a | ran once |
+| App `/metrics` | `curl.exe -s localhost:8000/metrics \| Select-String campus_holds_placed` | `5.0` | `6.0` |
+| Prometheus | Table view of `campus_holds_placed_total` (`localhost:9091`) | `5` | `6` |
+| Grafana | "Holds placed vs rejected": `sum(rate(campus_holds_placed_total[5m]))` | `0` | about `0.0033` |
+
+![Figure D3a: /metrics before](img/output_before.png)
+
+*Figure D3a — `/metrics` before the extra hold: `campus_holds_placed_total{eatery="main-cafeteria"} 5.0`.*
+
+![Figure D3b: Prometheus before](img/live_metric_before.png)
+
+*Figure D3b — Prometheus Table view before: value 5.*
+
+![Figure D3c: /metrics after](img/output_after.png)
+
+*Figure D3c — `/metrics` after the hold: the counter is 6.0.*
+
+![Figure D3d: Prometheus after](img/live_metric_after.png)
+
+*Figure D3d — Prometheus Table view after: value 6.*
+
+![Figure D3e: Grafana panel](img/holds_placed_vs_rejected.png)
+
+*Figure D3e — Grafana panel "Holds placed vs rejected" stepping up when the hold was placed.*
+
+The counter went from 5 to 6, and Prometheus shows the new value within one 5-second scrape. The
+Grafana panel shows a rate, not the counter itself: one extra hold inside the 5-minute window is
+1 / 300 s ≈ 0.0033 holds per second, which is the step on the chart. The line returns to 0 once the
+hold is more than 5 minutes old. Only `placed` is drawn because no hold was rejected in that window.
 
 **Log — `hold_created`:**
 
@@ -501,26 +493,45 @@ scraping (`up`), or it will raise a false alarm during a monitoring outage.
 
 The same hold (hold 321, request `e1-baseline-0`) is followed through all three formats in Part C.
 
-> **TODO:** add the Kibana row for it: search `app.request_id : "e1-baseline-0"` (range 2026-10-24
-> 16:36:00 → 16:38:00 local) and screenshot the result.
+![Figure D4: Kibana, request e1-baseline-0](img/kibana_e1_baseline_0.png)
 
-working on this stack was interesting, but it has led to a few things which I find a bit hard to understand. For example, I do not understand the storage lifecycle of prometheus, as in, how does it manage the head block and WAL, handles compaction, or decides exactly when to drop series from memory. I'm also a bit confused with histogram_quantile and how inaccurate my p95 calculations might actually be because of coarse buckets. Finally, there's Elasticsearch. I'm not sure how its  dynamic mapping works, or what Filebeat is doing internally with its queues when it goes down.
+*Figure D4 — Searching `app.request_id : "e1-baseline-0"` returns two documents: `hold_created`
+(hold 321, 16:36:39.133 local) and the `request_completed` line for the same `POST /holds` request
+2 ms later (status 201, `app.duration_ms` 22.5). The log written by the code at the start of this
+path is the one found at the end of it, with its fields searchable.*
+
+### 3. What I do not yet understand
+
+Working on this stack was interesting, but a few things are still unclear to me:
+
+- **Prometheus storage lifecycle.** I do not understand how Prometheus manages the head block and the
+  write-ahead log (WAL), how compaction works, or when exactly series are dropped from memory. Part E2
+  shows the visible effect (old series stay in `prometheus_tsdb_head_series` after the label is
+  removed), but not the mechanism behind it.
+- **How wrong a histogram p95 can be.** I know that `histogram_quantile` interpolates inside a bucket
+  (Figure B2 and E1: 877 ms estimated against 524.8 ms measured by the client). What I cannot yet do
+  is work out in advance how large the error will be for a given choice of bucket edges.
+- **Elasticsearch dynamic mapping.** I am not sure how Elasticsearch decides the type of each new
+  field, or what happens when a field's type differs between daily indices.
+- **Filebeat queues.** I do not know what Filebeat does internally with its queue and registry when
+  Elasticsearch or Filebeat itself goes down, beyond the behaviour described in the table above.
 
 ---
 
 ## Part E: Experiments
 
 Both scripts print the UTC start and end of every stage; use those for the Grafana time range and the
-Kibana time filter. Screenshots in this section must use absolute time ranges.
+Kibana time filter. Screenshots in this section use absolute time ranges.
 
 ### E1: slow menu requests during a simulated rush
 
 **Why this problem.** For a food app, the menu is the most-used screen. A tail of slow menu loads is
 the realistic failure: nothing errors, but some students wait.
 
-**Method** (`experiments/e1_slow_menu.sh`; run in Git Bash on Windows). Three stages at 5 requests/s from `experiments/traffic.py` (deterministic
-with `--seed`; mix of 60 % menu reads, 15 % item reads, 14 % new holds, 6 % pickups, 2 % cancels,
-3 % staff updates). Each stage ran for 120 s (24 Prometheus scrapes at 5 s), back to back; the script printed the UTC boundaries (see Results).
+**Method** (`experiments/e1_slow_menu.sh`; run in Git Bash on Windows). Three stages at 5 requests/s
+from `experiments/traffic.py` (deterministic with `--seed`; mix of 60 % menu reads, 15 % item reads,
+14 % new holds, 6 % pickups, 2 % cancels, 3 % staff updates). Each stage ran for 120 s (24 Prometheus
+scrapes at 5 s), back to back; the script printed the UTC boundaries (see Results).
 
 | Stage | Tag | Action |
 |---|---|---|
@@ -564,11 +575,9 @@ Kibana: `app.event : "fault_injected"` for the fault stage, and
 > the "recovery" stage keeps looking slow for about 5 minutes after the fault is cleared, because the
 > window still contains fault data. That is a property of the window, not of the app.
 
-**Results.**
-
-**Results (measured on the Docker stack, run in Git Bash on 2026-10-24, about 16:36-16:42 local time (UTC+5); times below are UTC as printed by
-`e1_slow_menu.sh`).** The numbers below are measured by the load generator (`traffic.py`) on the
-client side. The server-side view (Prometheus, Kibana) is in Figures E1-1 and E1-2.
+**Results** (measured on the Docker stack, run in Git Bash on 2026-10-24, about 16:36–16:42 local time
+(UTC+5); times below are UTC as printed by `e1_slow_menu.sh`). The first set of numbers is measured by
+the load generator (`traffic.py`) on the client side. The server-side view (Prometheus, Kibana) follows.
 
 Menu route, `GET /eateries/{id}/menu`:
 
@@ -680,7 +689,7 @@ a 1-minute window.*
 *Figure E1-1b — query
 `sum(rate(campus_http_request_duration_seconds_sum{route="/eateries/{eatery_id}/menu"}[1m])) / sum(rate(campus_http_request_duration_seconds_count{route="/eateries/{eatery_id}/menu"}[1m]))`.
 Mean menu latency in seconds: close to 0 before and after, and about 0.10 s (the 103 ms measured with
-the API) during the fault. The mean rises about 100 times but only to 0.1 s, which is why the mean
+the API) during the fault. The mean rises roughly 74 times but only to 0.1 s, which is why the mean
 alone understates a half-second problem for one request in five.*
 
 ![Figure E1-1c: share of menu requests within 0.5 s](img/e1_grafana_share.png)
@@ -690,28 +699,20 @@ alone understates a half-second problem for one request in five.*
 The share of menu requests that finished within 0.5 s: 1.0 normally, dropping to about 0.8 during the
 fault because 1 in 5 requests (20 %) now takes just over 0.5 s, and back to 1.0 afterwards.*
 
-> **TODO (optional but worth it).** These charts were made in Grafana Explore, so they are not in the
-> dashboard JSON you submit. Use **Add → Add to dashboard** on each query to put them on the provisioned
-> dashboard (an "E1" row), and re-export `app-and-business.json`. Optionally add a Kibana capture of
-> `app.event : "request_completed" and app.duration_ms >= 400` (about 69 documents) to tie the slow
-> requests to the injected delays.
-
-**Preliminary observation (manual fault test).** Figure B2 already shows the p95 mechanism: a long
-plateau near 4.8 s on the menu route (yellow), then a drop to near zero once the fault was removed
-(about 00:08), which shows recovery after the fault was cleared. The plateau value is the
-bucket-interpolation effect described under Figure B2. It is not a real 4.8 s latency.
-
-> **TODO:** this manual run used a different delay from the 500 ms planned for E1. Find the setting in
-> Kibana (`app.event : "fault_configured"`) and write it here, then run the stages above properly.
+These three charts were made in Grafana Explore, so they are not part of the provisioned dashboard
+file; the full queries are given above and in the captions so they can be reproduced.
 
 **Cause and effect on users.** Every fifth menu request sleeps before answering, so one in five
 students waits an extra half second on the screen they open most. No request fails (status codes are
-identical in all stages), which is why the error panel stays quiet. The mean rose about 8× (14.4 → 113.8 ms) while the p95 rose about 18× (28.5 → 524.8 ms), and a 114 ms mean alone would not look alarming; that is the argument for charting percentiles and not only averages.
+identical in all stages), which is why the error panel stays quiet. The mean rose about 8×
+(14.4 → 113.8 ms) while the p95 rose about 18× (28.5 → 524.8 ms), and a 114 ms mean alone would not
+look alarming; that is the argument for charting percentiles and not only averages.
 
 **Recovery.** After `DELETE /admin/faults` the menu mean and p95 return to the baseline level and
-`fault_injected` stops appearing in Kibana.
-
-In Figures E1-1a to E1-1c the three lines are back at their baseline values within about a minute of the fault being cleared at 16:40:39 local, which is the length of the 1-minute window. Client-side, the recovery stage matched the baseline (13.3 ms mean and 28.7 ms p95, against 14.4 ms and 28.5 ms).
+`fault_injected` stops appearing in Kibana. In Figures E1-1a to E1-1c the three lines are back at their
+baseline values within about a minute of the fault being cleared at 16:40:39 local, which is the length
+of the 1-minute window. Client-side, the recovery stage matched the baseline (13.3 ms mean and 28.7 ms
+p95, against 14.4 ms and 28.5 ms).
 
 ### E2: cardinality explosion
 
@@ -727,10 +728,12 @@ Series count: `count(demo_requests_total)` (and `prometheus_tsdb_head_series` fo
 
 **Expected.** About 100 series with the label; 1 series without it.
 
-**Commands (measured run, Git Bash, repo root; Prometheus is on host port 9091).** I first tried
-`e2_cardinality.sh`, but its own "series" line printed 0 in both runs, so the numbers below come from
-running the same steps by hand against the Prometheus HTTP API. The waits were about 45 s after
-starting the label run and about 25 s after the restart, which is several 5-second scrapes each.
+**Commands.** `experiments/e2_cardinality.sh` runs both stages and prints the series count for each:
+**100** with the `request_id` label and **1** without it (the script originally queried the old
+Prometheus port, 9090, and printed 0; it now uses 9091). The manual commands below run the same steps
+against the Prometheus HTTP API, and also show what the script does not: that the old series stay
+stored after the label is removed. The waits were about 45 s after starting the label run and about
+25 s after the restart, which is several 5-second scrapes each.
 
 ```bash
 docker compose --profile experiments rm -sf cardinality-demo        # clean start
@@ -787,12 +790,6 @@ back to the bottom of the axis (about 1 series) once the label is removed and th
 last run was still at 100 when the screenshot was taken. The measured run in the table above is the
 clean, ordered version of the same experiment.*
 
-> **TODO (optional but worth it).** Take one fresh Prometheus screenshot of the Table view for
-> `count(last_over_time(demo_requests_total[1h]))` (101) next to `count(demo_requests_total)` (1), so
-> the report has a picture of "stored history survives, live series collapse". Also fix the count step
-> in `e2_cardinality.sh` (or state in the README that the manual commands above are the supported way
-> to reproduce), because a marker running the script will see `0` as I did.
-
 **Why it matters at scale.** Every distinct combination of label values is its own time series, and
 each series has its own index entry and its own samples. Recent series are held in memory until
 Prometheus compacts them to disk (a few hours), and the index grows with the number of series ever
@@ -811,6 +808,11 @@ grouped as `unmatched`.
 As the assignment notes, removing a label does not delete series already stored. They stop receiving
 samples and age out with the 7-day retention.
 
+---
+
 ## Credits and assistance
 
-I will give due credits to all sources that I have used. First of all, the libraries (FastAPI, prometheus, Grafana, Node Exporter, Filebeat, Elasticsearch, and Kibana). The exact versions for each module are written in the docker-compose.yml file. As for AI assistance, I primarily used Claude on web for code assistance, as well as reviewing the report.
+I credit the following sources. The libraries and tools I used are FastAPI, Prometheus, Grafana,
+Node Exporter, Filebeat, Elasticsearch and Kibana; the exact version of each is pinned in
+`docker-compose.yml`. As for AI assistance, I used Claude (web) for code assistance and for reviewing
+this report.
