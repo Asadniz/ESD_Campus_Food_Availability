@@ -1,656 +1,656 @@
 {
-    "id": null,
-    "uid": "campus-food-app-and-business",
-    "title": "Campus Food: app, business & host metrics",
-    "tags": [
-      "campus-food"
-    ],
-    "timezone": "browser",
-    "schemaVersion": 39,
-    "version": 1,
-    "refresh": "10s",
-    "time": {
-      "from": "now-30m",
-      "to": "now"
-    },
-    "panels": [
-      {
-        "id": 1,
-        "title": "Request rate by route (Counter)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 0,
-          "y": 0,
-          "w": 12,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "sum by (route) (rate(campus_http_requests_total[1m]))",
-            "legendFormat": "{{route}}",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
+  "id": null,
+  "uid": "campus-food-app-and-business",
+  "title": "Campus Food: app, business & host metrics",
+  "tags": [
+    "campus-food"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request rate by route (Counter)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (route) (rate(campus_http_requests_total[1m]))",
+          "legendFormat": "{{route}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
           }
         }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
       },
-      {
-        "id": 2,
-        "title": "Error rate: 4xx / 5xx (Counter)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 12,
-          "y": 0,
-          "w": 12,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "sum by (status) (rate(campus_http_requests_total{status=~\"4..|5..\"}[1m]))",
-            "legendFormat": "{{status}}",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 3,
-        "title": "Requests in progress (Gauge)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 0,
-          "y": 8,
-          "w": 8,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "campus_http_requests_in_progress",
-            "legendFormat": "in progress",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 4,
-        "title": "p95 request latency by route (Histogram)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 8,
-          "y": 8,
-          "w": 16,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.95, sum by (route, le) (rate(campus_http_request_duration_seconds_bucket[5m])))",
-            "legendFormat": "{{route}} p95",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "s"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 5,
-        "title": "Menu views by eatery (Counter, business)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 0,
-          "y": 16,
-          "w": 12,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "sum by (eatery) (rate(campus_menu_views_total[5m]))",
-            "legendFormat": "{{eatery}}",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 6,
-        "title": "Holds placed vs rejected (Counter, business)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 12,
-          "y": 16,
-          "w": 12,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "sum(rate(campus_holds_placed_total[5m]))",
-            "legendFormat": "placed",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          },
-          {
-            "expr": "sum(rate(campus_holds_rejected_total[5m]))",
-            "legendFormat": "rejected",
-            "refId": "B",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 7,
-        "title": "Items available right now, by eatery (Gauge, business)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 0,
-          "y": 24,
-          "w": 12,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "campus_items_available",
-            "legendFormat": "{{eatery}}",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 8,
-        "title": "Active holds waiting for pickup (Gauge, business)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 12,
-          "y": 24,
-          "w": 12,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "campus_active_holds",
-            "legendFormat": "{{eatery}}",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 9,
-        "title": "Average hold-creation time (Summary)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 0,
-          "y": 32,
-          "w": 8,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "rate(campus_hold_creation_seconds_sum[5m]) / rate(campus_hold_creation_seconds_count[5m])",
-            "legendFormat": "avg",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "s"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 10,
-        "title": "Hold pickup delay: p50 / p95 (Histogram, explored myself)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 8,
-          "y": 32,
-          "w": 16,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.50, sum by (le) (rate(campus_hold_pickup_delay_seconds_bucket[30m])))",
-            "legendFormat": "p50",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          },
-          {
-            "expr": "histogram_quantile(0.95, sum by (le) (rate(campus_hold_pickup_delay_seconds_bucket[30m])))",
-            "legendFormat": "p95",
-            "refId": "B",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "s"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 11,
-        "title": "Staff auth failures (Counter)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 0,
-          "y": 40,
-          "w": 8,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "rate(campus_staff_auth_failures_total[5m])",
-            "legendFormat": "failures/s",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 12,
-        "title": "Background job last run age (Gauge)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 8,
-          "y": 40,
-          "w": 16,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "time() - campus_background_job_last_run_timestamp_seconds",
-            "legendFormat": "{{job}} age",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "s"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 13,
-        "title": "Node: CPU busy % (asad-laptop)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 0,
-          "y": 48,
-          "w": 8,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "100 - (avg by (host) (rate(node_cpu_seconds_total{mode=\"idle\",host=\"asad-laptop\"}[5m])) * 100)",
-            "legendFormat": "{{host}}",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "max": 100
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 14,
-        "title": "Node: memory used % (asad-laptop)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 8,
-          "y": 48,
-          "w": 8,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "100 * (1 - node_memory_MemAvailable_bytes{host=\"asad-laptop\"} / node_memory_MemTotal_bytes{host=\"asad-laptop\"})",
-            "legendFormat": "{{host}}",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "max": 100
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 15,
-        "title": "Node: disk free % (asad-laptop, root fs)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 16,
-          "y": 48,
-          "w": 8,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "100 * node_filesystem_avail_bytes{host=\"asad-laptop\",mountpoint=\"/\"} / node_filesystem_size_bytes{host=\"asad-laptop\",mountpoint=\"/\"}",
-            "legendFormat": "{{host}}",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "percent",
-            "max": 100
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
-        }
-      },
-      {
-        "id": 16,
-        "title": "Node: network throughput (asad-laptop)",
-        "type": "timeseries",
-        "gridPos": {
-          "x": 0,
-          "y": 56,
-          "w": 24,
-          "h": 8
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "targets": [
-          {
-            "expr": "rate(node_network_receive_bytes_total{host=\"asad-laptop\",device!=\"lo\"}[5m])",
-            "legendFormat": "{{device}} rx",
-            "refId": "A",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          },
-          {
-            "expr": "rate(node_network_transmit_bytes_total{host=\"asad-laptop\",device!=\"lo\"}[5m])",
-            "legendFormat": "{{device}} tx",
-            "refId": "B",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            }
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "Bps"
-          },
-          "overrides": []
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          }
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
         }
       }
-    ]
-  }
+    },
+    {
+      "id": 2,
+      "title": "Error rate: 4xx / 5xx (Counter)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(campus_http_requests_total{status=~\"4..|5..\"}[1m]))",
+          "legendFormat": "{{status}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Requests in progress (Gauge)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "campus_http_requests_in_progress",
+          "legendFormat": "in progress",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "p95 request latency by route (Histogram)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 8,
+        "w": 16,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (route, le) (rate(campus_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{route}} p95",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Menu views by eatery (Counter, business)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (eatery) (rate(campus_menu_views_total[5m]))",
+          "legendFormat": "{{eatery}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Holds placed vs rejected (Counter, business)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(campus_holds_placed_total[5m]))",
+          "legendFormat": "placed",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "sum(rate(campus_holds_rejected_total[5m]))",
+          "legendFormat": "rejected",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Items available right now, by eatery (Gauge, business)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "campus_items_available",
+          "legendFormat": "{{eatery}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Active holds waiting for pickup (Gauge, business)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "campus_active_holds",
+          "legendFormat": "{{eatery}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Average hold-creation time (Summary)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(campus_hold_creation_seconds_sum[5m]) / rate(campus_hold_creation_seconds_count[5m])",
+          "legendFormat": "avg",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Hold pickup delay: p50 / p95 (Histogram, explored myself)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 32,
+        "w": 16,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(campus_hold_pickup_delay_seconds_bucket[30m])))",
+          "legendFormat": "p50",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(campus_hold_pickup_delay_seconds_bucket[30m])))",
+          "legendFormat": "p95",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Staff auth failures (Counter)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(campus_staff_auth_failures_total[5m])",
+          "legendFormat": "failures/s",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Background job last run age (Gauge)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 40,
+        "w": 16,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "time() - campus_background_job_last_run_timestamp_seconds",
+          "legendFormat": "{{job}} age",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Node: CPU busy % (asad-laptop)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 - (avg by (host) (rate(node_cpu_seconds_total{mode=\"idle\",host=\"asad-laptop\"}[5m])) * 100)",
+          "legendFormat": "{{host}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "Node: memory used % (asad-laptop)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 48,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes{host=\"asad-laptop\"} / node_memory_MemTotal_bytes{host=\"asad-laptop\"})",
+          "legendFormat": "{{host}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "Node: disk free % (asad-laptop: Windows D: drive and Docker data disk)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 48,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * node_filesystem_avail_bytes{host=\"asad-laptop\", mountpoint=~\"/mnt/host/d|/var/lib\"} / node_filesystem_size_bytes{host=\"asad-laptop\", mountpoint=~\"/mnt/host/d|/var/lib\"}",
+          "legendFormat": "{{mountpoint}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "title": "Node: network throughput (asad-laptop)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(node_network_receive_bytes_total{host=\"asad-laptop\",device!=\"lo\"}[5m])",
+          "legendFormat": "{{device}} rx",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "rate(node_network_transmit_bytes_total{host=\"asad-laptop\",device!=\"lo\"}[5m])",
+          "legendFormat": "{{device}} tx",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    }
+  ]
+}

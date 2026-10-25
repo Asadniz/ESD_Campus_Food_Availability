@@ -4,11 +4,13 @@ import logging
 from fastapi import APIRouter, Depends
 
 from ..auth import require_staff
+from ..errors import error_responses
 from ..faults import faults
 from ..observability.logs import log_event
 from ..schemas import FaultConfig
 
-router = APIRouter(prefix="/admin/faults", tags=["admin"], dependencies=[Depends(require_staff)])
+router = APIRouter(prefix="/admin/faults", tags=["admin"], dependencies=[Depends(require_staff)],
+                   responses=error_responses(401, 422))
 logger = logging.getLogger("campus.admin")
 
 

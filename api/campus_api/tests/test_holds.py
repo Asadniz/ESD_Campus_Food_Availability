@@ -17,7 +17,7 @@ def test_hold_sold_out(client):
                  json={"available": False})
     r = client.post("/holds", json={"item_id": 1})
     assert r.status_code == 409
-    assert r.json()["detail"] == "item is sold out"
+    assert r.json()["error"]["code"] == "ITEM_SOLD_OUT"
 
 
 def test_hold_cancel_returns_portion(client):

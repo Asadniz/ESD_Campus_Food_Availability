@@ -32,6 +32,14 @@ CREATE TABLE IF NOT EXISTS holds (
     closed_at REAL
 );
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+
+CREATE TABLE IF NOT EXISTS idempotency_keys (
+    key TEXT PRIMARY KEY,
+    request_hash TEXT NOT NULL,            -- fingerprint of the request body
+    status_code INTEGER NOT NULL,
+    response_body TEXT NOT NULL,           -- JSON of the original response
+    created_at REAL NOT NULL
+);
 """
 
 

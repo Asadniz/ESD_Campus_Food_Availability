@@ -16,5 +16,8 @@ def client(tmp_path, monkeypatch):
     importlib.reload(seed)
     from campus_api.main import app
     from fastapi.testclient import TestClient
+    from campus_api.ratelimit import hold_limiter
+    hold_limiter.reset()
+    hold_limiter.configure(max_calls=1000, window_seconds=10)
     with TestClient(app) as c:
         yield c

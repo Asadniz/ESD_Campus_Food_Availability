@@ -1,14 +1,15 @@
 """Item availability: anyone can read it, staff can change it."""
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from .. import db
 from ..auth import require_staff
+from ..errors import ApiError, error_responses
 from ..observability.gauges import refresh_gauges
 from ..observability.logs import log_event
 from ..observability.metrics import AVAILABILITY_UPDATES
-from ..schemas import AvailabilityUpdate
+from ..schemas import AvailabilityUpdate, ItemOut
 
 router = APIRouter(prefix="/items", tags=["items"])
 logger = logging.getLogger("campus.items")
@@ -27,21 +28,22 @@ def _public(row) -> dict:
     }
 
 
-@router.get("/{item_id}")
+@router.get("/{item_id}", response_model=ItemOut, responses=error_responses(404, 422))
 def get_item(item_id: int):
     with db.session() as conn:
         row = conn.execute(_ITEM_SQL, (item_id,)).fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="item not found")
+        raise ApiError(404, "ITEM_NOT_FOUND", "item not found")
     return _public(row)
 
 
-@router.patch("/{item_id}/availability", dependencies=[Depends(require_staff)])
+@router.patch("/{item_id}/availability", response_model=ItemOut, dependencies=[Depends(require_staff)],
+              responses=error_responses(401, 404, 422))
 def set_availability(item_id: int, body: AvailabilityUpdate):
     with db.session() as conn:
         row = conn.execute(_ITEM_SQL, (item_id,)).fetchone()
         if not row:
-            raise HTTPException(status_code=404, detail="item not found")
+            raise ApiError(404, "ITEM_NOT_FOUND", "item not found")
         portions = body.portions_left if body.portions_left is not None else row["portions_left"]
         conn.execute("UPDATE menu_items SET available = ?, portions_left = ? WHERE id = ?",
                      (int(body.available), portions, item_id))

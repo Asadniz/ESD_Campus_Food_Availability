@@ -8,10 +8,13 @@ services:
   # ------------------------------------------------------------------ the application
   api:
     build: ./api
-    container_name: campus-app          # Filebeat keeps only logs from this container name
+    container_name: campus-app
     ports: ["8000:8000"]
+    environment:
+      HOLD_RATE_LIMIT: ${HOLD_RATE_LIMIT:-5}
+      HOLD_RATE_WINDOW_SECONDS: ${HOLD_RATE_WINDOW_SECONDS:-10}
     volumes:
-      - api-data:/data                  # SQLite file survives restarts
+      - api-data:/data
     logging:                            # Docker's own log files: rotate so they cannot fill the disk
       driver: json-file
       options: { max-size: "10m", max-file: "3" }

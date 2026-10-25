@@ -82,5 +82,5 @@ HOLD_CREATION = Summary(
 HOLD_PICKUP_DELAY = Histogram(
     "campus_hold_pickup_delay_seconds",
     "Seconds between placing a hold and picking it up.",
-    buckets=(600, 1800, 3600, 7200, 10800, 14400, 21600, 43200),
+    buckets=(30, 60, 120, 300, 600, 1800, 3600, 7200, 10800, 14400, 21600, 43200),
 )

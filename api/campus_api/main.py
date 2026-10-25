@@ -13,6 +13,7 @@ from .observability.gauges import refresh_gauges
 from .observability.logs import log_event, setup_logging
 from .observability.middleware import ObservabilityMiddleware
 from .routers import admin, eateries, holds, items
+from .errors import register_error_handlers
 
 setup_logging()
 logger = logging.getLogger("campus.app")
@@ -31,6 +32,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Campus Food Availability", lifespan=lifespan)
+register_error_handlers(app)
 app.add_middleware(ObservabilityMiddleware)
 for module in (eateries, items, holds, admin):
     app.include_router(module.router)

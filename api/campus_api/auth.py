@@ -6,6 +6,7 @@ from fastapi import Header, HTTPException
 
 from . import config
 from .observability.logs import log_event
+from .errors import ApiError
 from .observability.metrics import STAFF_AUTH_FAILURES
 
 logger = logging.getLogger("campus.auth")
@@ -18,4 +19,4 @@ def require_staff(x_staff_key: str | None = Header(default=None)) -> None:
     # Log that it failed, never the key that was sent.
     log_event(logger, logging.WARNING, "staff_auth_failed", "staff key missing or wrong",
               key_supplied=bool(x_staff_key))
-    raise HTTPException(status_code=401, detail="staff key required")
+    raise ApiError(401, "STAFF_KEY_REQUIRED", "staff key required")

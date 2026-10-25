@@ -3,10 +3,11 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from .. import db
 from ..faults import faults
+from ..errors import ApiError, error_responses
 from ..observability.logs import log_event
 from ..observability.metrics import MENU_VIEWS
 
@@ -21,7 +22,7 @@ def list_eateries():
     return [dict(r) for r in rows]
 
 
-@router.get("/{eatery_id}/menu")
+@router.get("/{eatery_id}/menu", responses=error_responses(404, 422))
 def get_menu(eatery_id: int):
     delay = faults.menu_delay_seconds()
     if delay:
@@ -32,7 +33,7 @@ def get_menu(eatery_id: int):
     with db.session() as conn:
         eatery = conn.execute("SELECT id, name, slug, location FROM eateries WHERE id = ?", (eatery_id,)).fetchone()
         if not eatery:
-            raise HTTPException(status_code=404, detail="eatery not found")
+            raise ApiError(404, "EATERY_NOT_FOUND", "eatery not found")
         items = conn.execute(
             "SELECT id, name, category, price_pkr, portions_left, available FROM menu_items "
             "WHERE eatery_id = ? ORDER BY id", (eatery_id,),
