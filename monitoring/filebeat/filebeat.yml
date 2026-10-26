@@ -6,13 +6,16 @@ filebeat.inputs:
       - /var/lib/docker/containers/*/*.log
 
 processors:
-  # 1. Attach container.name so we can keep only the app's logs.
+  # 1. Attach container.name so we can keep only the app's logs (HTTP API and gRPC service).
   - add_docker_metadata: ~
   - drop_event:
       when:
         not:
-          equals:
-            container.name: campus-app
+          or:
+            - equals:
+                container.name: campus-app
+            - equals:
+                container.name: campus-grpc
 
   # 2. The app's JSON line arrives as the plain string "message". Keep it untouched as event.original.
   - rename:

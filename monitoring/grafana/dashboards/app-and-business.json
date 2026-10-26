@@ -343,7 +343,7 @@
       },
       "targets": [
         {
-          "expr": "rate(campus_hold_creation_seconds_sum[5m]) / rate(campus_hold_creation_seconds_count[5m])",
+          "expr": "sum(rate(campus_hold_creation_seconds_sum[5m])) / sum(rate(campus_hold_creation_seconds_count[5m]))",
           "legendFormat": "avg",
           "refId": "A",
           "datasource": {

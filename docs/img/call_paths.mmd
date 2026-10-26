@@ -1,0 +1,18 @@
+flowchart LR
+  subgraph HTTP["HTTP version: POST /holds (container campus-app, port 8000)"]
+    direction LR
+    H1["Client<br/>curl / caller/client.py<br/>JSON over HTTP"] --> H2["ObservabilityMiddleware<br/>request_id, metrics, log"]
+    H2 --> H3["hold_limiter<br/>5 per 10 s, else 429"]
+    H3 --> H4["Pydantic HoldCreate<br/>validation, else 422"]
+    H4 --> H5["Route handler<br/>routers/holds.py create_hold<br/>HoldError to ApiError, HTTP status"]
+  end
+  subgraph GRPC["gRPC version: CreateHold (container campus-grpc, port 50051)"]
+    direction LR
+    G1["Client<br/>caller/grpc_client.py"] --> G2["Generated stub<br/>HoldServiceStub.CreateHold<br/>protobuf bytes over HTTP/2<br/>deadline, x-request-id metadata"]
+    G2 --> G3["ObservabilityInterceptor<br/>request_id, log, status"]
+    G3 --> G4["Generated servicer dispatch<br/>holds_pb2_grpc"]
+    G4 --> G5["Server handler<br/>HoldServicer.CreateHold<br/>HoldCreate validation<br/>HoldError to gRPC status"]
+  end
+  H5 --> S["hold_service.create_hold<br/>same business rules, idempotency, metrics, logs"]
+  G5 --> S
+  S --> DB[("SQLite file<br/>api-data volume<br/>one source of truth")]

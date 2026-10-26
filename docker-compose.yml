@@ -1,4 +1,4 @@
-# Campus Food Availability: app + metrics (Prometheus, Grafana, Node Exporter) + logs (Filebeat, Elasticsearch, Kibana)
+# Campus Food Availability: app (HTTP + gRPC) + metrics (Prometheus, Grafana, Node Exporter) + logs (Filebeat, Elasticsearch, Kibana)
 # Start:  docker compose up -d --build
 # Stop:   docker compose down          (add -v to also delete all stored data)
 
@@ -16,6 +16,23 @@ services:
     volumes:
       - api-data:/data
     logging:                            # Docker's own log files: rotate so they cannot fill the disk
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    restart: unless-stopped
+
+  # gRPC version of POST /holds (Assignment 2, Part B). Same image and the same database volume as
+  # the HTTP API, a different process. Create a hold: python caller/grpc_client.py --item-id 1
+  grpc:
+    build: ./api
+    container_name: campus-grpc
+    command: ["python", "-m", "campus_api.grpc_server"]
+    ports: ["50051:50051"]
+    environment:
+      SERVICE_NAME: campus-food-grpc
+    volumes:
+      - api-data:/data                  # the same SQLite file as the HTTP API: one source of truth
+    depends_on: [api]
+    logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
     restart: unless-stopped

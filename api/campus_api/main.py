@@ -45,6 +45,12 @@ def health():
 
 @app.get("/metrics", include_in_schema=False)
 def metrics():
+    # The gauges come from the database, and a hold can also be created by the gRPC process, so they
+    # are recomputed on every scrape (every 5 s) instead of only after HTTP requests.
+    try:
+        refresh_gauges()
+    except Exception:
+        logger.warning("could not refresh gauges for this scrape", exc_info=True)
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 

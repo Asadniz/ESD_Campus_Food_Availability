@@ -26,7 +26,21 @@ They are recorded in the middleware (HTTP ones) or in the route/job that causes 
 | `campus_items_available` | Gauge | items | `eatery` | What a student could order right now | `observability/gauges.py: refresh_gauges()` |
 | `campus_active_holds` | Gauge | holds | `eatery` | Holds currently waiting for pickup | `observability/gauges.py: refresh_gauges()` |
 | `campus_hold_creation_seconds` | Summary | seconds | none | Average time to create a hold (Python summaries give no percentiles, so average only) | `routers/holds.py: create_hold()` |
+| `campus_hold_replays_total` | Counter | replays | none | Hold requests answered from a stored `Idempotency-Key` instead of creating a hold (added in Assignment 2) | `hold_service.py: create_hold()` (HTTP and gRPC) |
 | `campus_hold_pickup_delay_seconds` | Histogram | seconds | none | **Explored myself.** How long food actually waits before pickup, with p50/p95 via `histogram_quantile` | `routers/holds.py: pick_up()` |
+
+## gRPC metrics (Assignment 2, Part C)
+
+Recorded in the gRPC process (`campus-grpc`), which serves them on port 9102 for the Prometheus job
+`campus-food-grpc`. The duration is measured on the server, around the handler.
+
+| Metric | Type | Unit | Labels | Purpose | Where recorded |
+|---|---|---|---|---|---|
+| `campus_grpc_requests_total` | Counter | calls | `method` (`CreateHold`), `status` (gRPC status name) | Traffic and error volume per RPC method and status | `grpc_server.py: ObservabilityInterceptor` |
+| `campus_grpc_request_duration_seconds` | Histogram | seconds | `method` | Server-side latency, source of p50/p95. Buckets 1 ms to 5 s | `grpc_server.py: ObservabilityInterceptor` |
+| `campus_grpc_requests_in_progress` | Gauge | calls | `method` | Calls being handled right now (saturation) | `grpc_server.py: ObservabilityInterceptor` |
+
+Full descriptions, queries and the audit that led to them are in `docs/A2_REPORT.md` (Part C).
 
 ## Host metrics (Node Exporter, scraped directly, no app code)
 
@@ -49,3 +63,13 @@ percentile support, so it only reports `_sum` and `_count`; the average is
 ```promql
 rate(campus_hold_creation_seconds_sum[5m]) / rate(campus_hold_creation_seconds_count[5m])
 ```
+
+## Notes added in Assignment 2
+
+- `campus_http_request_duration_seconds` now has buckets at 1 ms and 2.5 ms as well (12 buckets: 1 ms,
+  2.5 ms, 5 ms, ... 5 s). Almost every request is faster than 5 ms, so with the old lowest bucket the
+  percentiles were bucket artifacts. Numbers in the Assignment 1 report were measured with the old buckets.
+- `campus_items_available` and `campus_active_holds` are recomputed from the database on every
+  `/metrics` scrape, because a hold can be created by the gRPC process as well.
+- The gRPC process exposes only the metrics it records. The HTTP-only metrics are unregistered at start-up
+  (`grpc_server.py: expose_metrics()`).

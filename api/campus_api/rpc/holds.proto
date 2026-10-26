@@ -1,0 +1,38 @@
+// gRPC version of POST /holds. Same business rules and same SQLite database as the HTTP route
+// (both call campus_api/hold_service.py).
+//
+// Generate the Python code (run from api/):
+//   python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. campus_api/rpc/holds.proto
+syntax = "proto3";
+
+package campus.holds.v1;
+
+service HoldService {
+  // Place a hold on a menu item. Equivalent to POST /holds.
+  rpc CreateHold(CreateHoldRequest) returns (CreateHoldResponse);
+}
+
+message CreateHoldRequest {
+  // ID of the menu item to hold. Must be greater than 0.
+  int32 item_id = 1;
+  // Planned pickup, 15-480 minutes from now. Leave unset for the default (180), as in HTTP.
+  optional int32 pickup_in_minutes = 2;
+  // Same as the HTTP Idempotency-Key header. Empty means no key.
+  string idempotency_key = 3;
+}
+
+message CreateHoldResponse {
+  Hold hold = 1;
+  // True when the hold was returned from an earlier call with the same idempotency_key
+  // (HTTP: the Idempotent-Replayed response header).
+  bool replayed = 2;
+}
+
+message Hold {
+  int32 id = 1;
+  int32 item_id = 2;
+  string eatery = 3;
+  string pickup_code = 4;
+  string status = 5;
+  int32 planned_pickup_minutes = 6;
+}

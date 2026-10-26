@@ -21,7 +21,7 @@ HTTP_DURATION = Histogram(
     "campus_http_request_duration_seconds",
     "HTTP request latency in seconds.",
     ["method", "route"],
-    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
+    buckets=(0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
 )
 HTTP_IN_PROGRESS = Gauge(
     "campus_http_requests_in_progress",
@@ -83,4 +83,35 @@ HOLD_PICKUP_DELAY = Histogram(
     "campus_hold_pickup_delay_seconds",
     "Seconds between placing a hold and picking it up.",
     buckets=(30, 60, 120, 300, 600, 1800, 3600, 7200, 10800, 14400, 21600, 43200),
+)
+
+
+# ---------------------------------------------------------------- gRPC service (Assignment 2, Part C)
+# Recorded by ObservabilityInterceptor in grpc_server.py, so they exist only in the gRPC process.
+# Labels are bounded: `method` is the RPC name (one value today, CreateHold) and `status` is one of
+# the 17 gRPC status names. Never a user, request or trace ID.
+GRPC_REQUESTS = Counter(
+    "campus_grpc_requests_total",
+    "gRPC calls handled, by RPC method and final gRPC status.",
+    ["method", "status"],
+)
+# Measured on the server, from the start to the end of the handler. It leaves out network time and
+# protobuf encoding, which happen outside the interceptor. Finer low buckets than HTTP's originals,
+# because calls take a few milliseconds.
+GRPC_DURATION = Histogram(
+    "campus_grpc_request_duration_seconds",
+    "gRPC handler time in seconds (server side).",
+    ["method"],
+    buckets=(0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
+)
+GRPC_IN_PROGRESS = Gauge(
+    "campus_grpc_requests_in_progress",
+    "gRPC calls being handled right now.",
+    ["method"],
+)
+
+# ---------------------------------------------------------------- gap found in the Part C audit
+HOLD_REPLAYS = Counter(
+    "campus_hold_replays_total",
+    "Hold requests answered from a stored Idempotency-Key instead of creating a new hold.",
 )
