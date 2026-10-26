@@ -139,9 +139,8 @@ panel's long plateau near 4.8 s is explained in the box below.*
 
 ![Figure B3: gauges, summary and the explored histogram](img/grafana_02.png)
 
-*Figure B3 — Panels 7–10, last 30 minutes, 2026-10-25 (local time). Items available stay at 3–4 per
-eatery. Active holds jump to 4 at about 14:40 and fall back to 2 as the demo holds are picked up
-(see the explored metric below). Average hold-creation time is about 6–10 ms (Summary: average only).
+*Figure B3 — Panels 7–10, 14:15 to 14:45, 2026-10-25 (local time). Items available stay at 3–4 per
+eatery. Active holds jump to 4 at about 14:40 and fall back to 0 by 14:44, as the demo holds are picked up (see the explored metric below). Average hold-creation time is about 6–10 ms (Summary: average only).
 The bottom-right panel is the explored metric: the p50 and p95 of hold pickup delay, which only
 appear once pickups have happened. Panels 11–12 (staff auth failures, background job age) are in
 Figure D2.*
@@ -155,7 +154,7 @@ Using `{{exported_job}}` in the legend, or renaming the metric label (for exampl
 
 ![Figure B4: Node Exporter panels](img/grafana_03.png)
 
-*Figure B4 — Node Exporter panels for `asad-laptop`, last 30 minutes, 2026-10-25 (local time). CPU is
+*Figure B4 — Node Exporter panels for `asad-laptop`, 14:15 to 14:45 local time, 2026-10-25. CPU is
 near 0 % apart from two bursts to about 40 %, memory used is about 53–55 %, the disk panel shows two
 lines (about 91 % and 86 % free, for `/var/lib` and `/mnt/host/d`), and network rx/tx on `eth0` is in
 kB/s.*
@@ -783,12 +782,7 @@ What the numbers show:
 
 ![Figure E2-1: count(demo_requests_total) in an earlier trial](img/e2_prometheus_count.png)
 
-*Figure E2-1 — Prometheus graph, query `count(demo_requests_total)`, range 1 h, resolution 14 s, from
-an earlier trial on 2026-10-24 (x-axis in UTC). Three runs are visible (about 11:14, 11:19 and 11:25).
-Each time the series count rises to the cap of 100 while the `request_id` label is in use, then falls
-back to the bottom of the axis (about 1 series) once the label is removed and the demo restarted. The
-last run was still at 100 when the screenshot was taken. The measured run in the table above is the
-clean, ordered version of the same experiment.*
+    *Figure E2-1 — Prometheus graph, query `count(demo_requests_total)`, range 1 h ending 2026-10-25 09:20 UTC (x-axis in UTC), resolution 14 s. The count rises to the cap of 100 while the `request_id` label is in use (about 09:08 to 09:09) and drops once the label is removed and the demo restarted (about 09:09:30). The line ends at the bottom because the demo container was removed in the clean-up step, so no series exists after that. This is the same run as the table above.*
 
 **Why it matters at scale.** Every distinct combination of label values is its own time series, and
 each series has its own index entry and its own samples. Recent series are held in memory until
@@ -814,5 +808,4 @@ samples and age out with the 7-day retention.
 
 I credit the following sources. The libraries and tools I used are FastAPI, Prometheus, Grafana,
 Node Exporter, Filebeat, Elasticsearch and Kibana; the exact version of each is pinned in
-`docker-compose.yml`. As for AI assistance, I used Claude (web) for code assistance and for reviewing
-this report.
+`docker-compose.yml`. As for AI assistance, I used Claude (web) for code assistance and for reviewing this report.

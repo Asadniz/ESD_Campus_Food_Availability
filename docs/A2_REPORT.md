@@ -287,8 +287,6 @@ time) and the dashboard screenshots are in `evidence_part_02.md`, section C. In 
 
 ## Credits and assistance
 
-- The gRPC workshop (`labs/week1-midnight-launch/GRPC-WORKSHOP.md`) was used as a reference. <!-- TODO: say what you took from it, or remove this line if you did not use it -->
-- Libraries: FastAPI, Pydantic, grpcio, grpcio-tools, protobuf, prometheus_client, requests, pytest;
-  Prometheus, Grafana, Node Exporter, Filebeat, Elasticsearch and Kibana (official images).
-- AI assistance: Claude (Anthropic) was used to help draft code, tests and documentation and to review
-  the reports. <!-- TODO: confirm this wording matches your course's disclosure policy, and add anything you wrote yourself -->
+I credit the following sources. The libraries and tools I used are FastAPI, Prometheus, Grafana,
+Node Exporter, Filebeat, Elasticsearch and Kibana; the exact version of each is pinned in
+`docker-compose.yml`. As for AI assistance, I used Claude (web) for code assistance and for reviewing this report.
