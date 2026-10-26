@@ -286,3 +286,7 @@ range and the Kibana search when writing up Part E. Run them in Git Bash on Wind
 docker compose down        # stop, keep data
 docker compose down -v     # stop and delete all stored data (volumes)
 ```
+
+## Video Link
+
+[Youtube Video for the Assignment](https://youtu.be/EyhAXVRb1l4)
