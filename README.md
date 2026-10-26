@@ -70,16 +70,11 @@ is healthy:
 docker compose ps
 ```
 
-Open (host ports differ from the containers' defaults so they do not clash with other
-services on the same machine):
-
-| Service | URL | Notes |
-|---|---|---|
-| API (Swagger UI) | http://localhost:8000/docs | OpenAPI JSON at `/openapi.json` |
-| Prometheus | http://localhost:9091 | targets at `/targets` |
-| Grafana | http://localhost:3001 | admin / admin, dashboard is provisioned |
-| Kibana | http://localhost:5602 | data view `Campus food logs` and saved searches are already there |
-| Elasticsearch | http://localhost:9201 | |
+Open:
+- API: http://localhost:8000/docs (interactive Swagger UI)
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000 (admin / admin) — the dashboard is already provisioned
+- Kibana: http://localhost:5601 (data view `Campus food logs` and saved searches are already there)
 
 ## Use it
 
