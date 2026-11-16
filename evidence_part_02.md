@@ -487,11 +487,11 @@ call, with the same fields as an HTTP request:
 
 `app.request_id : "a2-grpc-ok"`
 
-![Kibana: gRPC request a2-grpc-ok](docs/img/kibana_grpc_ok.png)
+![Kibana: gRPC request a2-grpc-ok](docs/img/kibana_gRPC_ok.png)
 
 `app.request_id : "a2-grpc-notfound"`
 
-![Kibana: gRPC request a2-grpc-notfound](docs/img/kibana_grpc_notfound.png)
+![Kibana: gRPC request a2-grpc-notfound](docs/img/kibana_gRPC_notfound.png)
 
 The `grpc_call_completed` line carries `app.method` (`/campus.holds.v1.HoldService/CreateHold`),
 `app.grpc_status` (`OK`, `NOT_FOUND`, `INVALID_ARGUMENT`) and `app.duration_ms`, so a call can be
