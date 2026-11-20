@@ -6,42 +6,75 @@ filebeat.inputs:
       - /var/lib/docker/containers/*/*.log
 
 processors:
-  # 1. Attach container.name so we can keep only the app's logs (HTTP API and gRPC service).
+  # 1. Attach container.name so we can keep only the replicas' logs and Envoy's (Assignment 3).
+  #    Replicas are campus-food-app-1, -2, -3 ...; the proxy is campus-envoy.
   - add_docker_metadata: ~
   - drop_event:
       when:
         not:
           or:
+            - regexp:
+                container.name: '^campus-food-app-[0-9]+$'
             - equals:
-                container.name: campus-app
-            - equals:
-                container.name: campus-grpc
+                container.name: campus-envoy
+  # Envoy also prints its own plain-text startup/warning lines: only its JSON access logs are wanted.
+  - drop_event:
+      when:
+        and:
+          - equals:
+              container.name: campus-envoy
+          - not:
+              regexp:
+                message: '^\{'
 
-  # 2. The app's JSON line arrives as the plain string "message". Keep it untouched as event.original.
+  # 2. The JSON line arrives as the plain string "message". Keep it untouched as event.original.
   - rename:
       fields:
         - { from: message, to: event.original }
       ignore_missing: true
       fail_on_error: false
 
-  # 3. Parse that string into real fields: app.time, app.service, app.severity, app.request_id, ...
+  # 3. Parse it into real fields: app.* for a replica's own logs, envoy.* for Envoy's access log.
   - decode_json_fields:
+      when:
+        regexp:
+          container.name: '^campus-food-app-[0-9]+$'
       fields: ["event.original"]
       target: "app"
       max_depth: 2
       overwrite_keys: true
       add_error_key: true                        # unparseable lines get error.message instead of vanishing
+  - decode_json_fields:
+      when:
+        equals:
+          container.name: campus-envoy
+      fields: ["event.original"]
+      target: "envoy"
+      max_depth: 2
+      overwrite_keys: true
+      add_error_key: true
 
-  # 4. Use the time the app logged as the event time, not the time Filebeat read it.
+  # 4. Use the time the app / Envoy logged as the event time, not the time Filebeat read it.
   - timestamp:
       field: app.time
       layouts: ["2006-01-02T15:04:05.999Z"]
       ignore_missing: true
       ignore_failure: true
+  - timestamp:
+      field: envoy.time
+      layouts: ["2006-01-02T15:04:05.999Z"]
+      ignore_missing: true
+      ignore_failure: true
 
-  # 5. Put the human readable text back into the top level "message" field.
+  # 5. The join keys. Whatever the source, an event has top-level `trace_id` (the X-Request-ID that Envoy
+  #    forwards to the replica) and `replica`, so ONE search on trace_id returns the Envoy event and the
+  #    replica's event together.
   - copy_fields:
       fields:
+        - { from: app.request_id, to: trace_id }
+        - { from: envoy.request_id, to: trace_id }
+        - { from: app.replica, to: replica }
+        - { from: envoy.replica, to: replica }
         - { from: app.message, to: message }
       fail_on_error: false
       ignore_missing: true

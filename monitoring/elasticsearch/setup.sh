@@ -18,10 +18,29 @@ curl -sf -X PUT "$ES/_index_template/campus-food-logs" -H "$H" --data-binary @- 
 {
   "index_patterns": ["campus-food-logs-*"],
   "template": {
-    "settings": { "number_of_shards": 1, "number_of_replicas": 0, "index.lifecycle.name": "campus-food-logs" },
+    "settings": { "number_of_shards": 1, "number_of_replicas": 0, "index.lifecycle.name": "campus-food-logs", "index.mapping.ignore_malformed": true },
     "mappings": { "properties": {
       "message": { "type": "text" },
+      "trace_id": { "type": "keyword" },
+      "replica":  { "type": "keyword" },
+      "envoy": { "properties": {
+        "service":          { "type": "keyword" },
+        "listener":         { "type": "keyword" },
+        "request_id":       { "type": "keyword" },
+        "method":           { "type": "keyword" },
+        "path":             { "type": "keyword" },
+        "protocol":         { "type": "keyword" },
+        "response_code":    { "type": "integer" },
+        "grpc_status":      { "type": "keyword" },
+        "response_flags":   { "type": "keyword" },
+        "duration_ms":      { "type": "float" },
+        "upstream_cluster": { "type": "keyword" },
+        "upstream_host":    { "type": "keyword" },
+        "replica":          { "type": "keyword" },
+        "client":           { "type": "keyword" }
+      } },
       "app": { "properties": {
+        "replica":    { "type": "keyword" },
         "time":       { "type": "keyword" },
         "service":    { "type": "keyword" },
         "severity":   { "type": "keyword" },

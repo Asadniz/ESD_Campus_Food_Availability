@@ -29,4 +29,5 @@ saved_search server-errors       "5xx responses"            'app.event : request
 saved_search slow-requests       "Requests slower than 400 ms" 'app.event : request_completed and app.duration_ms >= 400'
 saved_search injected-faults     "Injected fault events"    'app.event : fault_injected'
 saved_search sold-out-holds      "Holds rejected as sold out" 'app.event : hold_rejected and app.reason : sold_out'
+saved_search envoy-access-log "Envoy access log (A3)"   'envoy.listener : *'
 echo "kibana setup done"

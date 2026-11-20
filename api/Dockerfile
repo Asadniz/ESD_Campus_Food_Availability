@@ -4,5 +4,5 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY campus_api ./campus_api
 ENV PYTHONUNBUFFERED=1
-EXPOSE 8000
-CMD ["python", "-m", "campus_api.main"]
+EXPOSE 8000 50051 9102
+CMD ["python", "-m", "campus_api.launcher"]

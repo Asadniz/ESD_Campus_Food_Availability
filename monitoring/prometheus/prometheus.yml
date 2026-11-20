@@ -3,13 +3,26 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
+  # Assignment 3: every replica is scraped DIRECTLY (container name, not through Envoy), and the replica
+  # letter is attached here as a label. A (-1), B (-2), C (-3). Add D (-4) for the optional 4th replica.
   - job_name: campus-food-api
     static_configs:
-      - targets: ["campus-app:8000"]      # serves /metrics
+      - { targets: ["campus-food-app-1:8000"], labels: { replica: A } }
+      - { targets: ["campus-food-app-2:8000"], labels: { replica: B } }
+      - { targets: ["campus-food-app-3:8000"], labels: { replica: C } }
+      # - { targets: ["campus-food-app-4:8000"], labels: { replica: D } }
 
-  - job_name: campus-food-grpc
+  - job_name: campus-food-grpc            # gRPC process of each replica (GRPC_METRICS_PORT)
     static_configs:
-      - targets: ["campus-grpc:9102"]     # gRPC service (CreateHold), metrics port from GRPC_METRICS_PORT
+      - { targets: ["campus-food-app-1:9102"], labels: { replica: A } }
+      - { targets: ["campus-food-app-2:9102"], labels: { replica: B } }
+      - { targets: ["campus-food-app-3:9102"], labels: { replica: C } }
+      # - { targets: ["campus-food-app-4:9102"], labels: { replica: D } }
+
+  - job_name: envoy                       # the proxy's own view (admin port), also direct
+    metrics_path: /stats/prometheus
+    static_configs:
+      - targets: ["envoy:9901"]
 
   - job_name: node
     static_configs:
