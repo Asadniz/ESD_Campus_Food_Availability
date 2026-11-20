@@ -1,0 +1,23 @@
+flowchart LR
+    C["HTTP / gRPC clients<br/>(loadgen, curl, grpc_client)"] -->|":8000 HTTP/1.1"| E
+    C -->|":50051 gRPC, ONE connection"| E
+    subgraph Envoy["Envoy (campus-envoy)"]
+      E["http_in + grpc_in<br/>both HCM, per-request routing<br/>JSON access log to stdout"]
+    end
+    E -->|"HTTP + gRPC<br/>(only A in Part A/B)"| A
+    E -.->|"added in Part C"| B
+    E -.->|"added in Part C"| C2
+    subgraph A["Replica A: campus-food-app-1"]
+      A1["HTTP :8000 + gRPC :50051<br/>/metrics :8000, :9102<br/>rate-limit counters: IN MEMORY"]
+    end
+    subgraph B["Replica B: campus-food-app-2"]
+      B1["HTTP + gRPC<br/>rate-limit counters: IN MEMORY"]
+    end
+    subgraph C2["Replica C: campus-food-app-3"]
+      C3["HTTP + gRPC<br/>rate-limit counters: IN MEMORY"]
+    end
+    A1 & B1 & C3 --> DB[("SQLite file on volume api-data<br/>holds, stock, idempotency keys<br/>SHARED")]
+    P["Prometheus"] -->|"scrape direct"| A1 & B1 & C3
+    P -->|"scrape direct :9901"| E
+    FB["Filebeat"] -->|"Docker logs of Envoy + replicas"| ES[("Elasticsearch / Kibana")]
+    P --> G["Grafana"]

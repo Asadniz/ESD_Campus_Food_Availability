@@ -6,6 +6,7 @@ place a hold on an item so it is kept aside instead of eaten cold two hours late
 Built for Enterprise Software Development, Fall 2026.
 
 - Assignment 1 (observability): write-up in `docs/REPORT.md`, metric table in `docs/METRICS.md`.
+- Assignment 3 (Envoy load balancing, 3 replicas): see the "Assignment 3" section at the end and `docs/A3_REPORT.md`.
 - Assignment 2 (HTTP API, gRPC, metrics): Part A evidence in `evidence_part_02.md`. Run and test
   commands are in the "Assignment 2" section below.
 
@@ -59,7 +60,8 @@ docker-compose.yml
 Requires Docker and Docker Compose.
 
 ```bash
-docker compose up -d --build
+python3 envoy/render.py a-only                  # Assignment 3: generate Envoy's config (first stage)
+docker compose up -d --build --scale app=3      # Envoy + three replicas A, B, C + the observability stack
 ```
 
 First start takes a minute or two (Elasticsearch has to come up before `es-setup` and
@@ -290,3 +292,96 @@ docker compose down -v     # stop and delete all stored data (volumes)
 ## Video Link
 
 [Youtube Video for the Assignment](https://youtu.be/EyhAXVRb1l4)
+
+## Assignment 3: load balancing and observability
+
+```
+clients --> Envoy :8000 (HTTP) / :50051 (gRPC) --> replicas A, B, C (campus-food-app-1..3), each HTTP + gRPC
+                                                     \--> one SQLite volume (data + idempotency keys, shared)
+Prometheus scrapes A, B, C (:8000 and :9102) and Envoy (:9901) directly. Filebeat ships Envoy's and the replicas' logs.
+```
+
+Files: `envoy/render.py` (generates `envoy/envoy.yaml` per stage), `experiments/a3/loadgen.py` (fixed-rate client),
+`experiments/a3/summarize.py` (results table + share cross-check), `experiments/a3/shared_state_check.py`,
+`scripts/replica-delay.sh`, `monitoring/grafana/dashboards/a3-load-balancing.json`, `docs/A3_REPORT.md`.
+Tip: `git tag a2-final <commit>` before pulling these changes in, the A2 compose layout (campus-app / campus-grpc) is replaced.
+
+### Setup (Part A)
+
+```bash
+python3 envoy/render.py a-only
+docker compose up -d --build --scale app=3
+docker compose ps                                   # app x3, envoy, prometheus, grafana, elasticsearch, kibana ...
+docker compose logs app | grep '"event":"launcher"' # replica letters: A, B, C
+curl -si localhost:8000/eateries/1/menu | grep -i x-replica      # A (only A is a destination)
+curl -s localhost:9901/clusters | grep -E "app_(http|grpc)::"    # Envoy's view of its destinations
+```
+
+First time after upgrading from A2, apply the new log mapping once: `docker compose up -d es-setup kibana-setup`
+and `curl -X DELETE 'localhost:9201/campus-food-logs-*'` (old indices have the old mapping).
+Open Grafana http://localhost:3001 (admin/admin) -> dashboard "A3: Load balancing", Kibana http://localhost:5602,
+Prometheus http://localhost:9091 (targets page: campus-food-api / campus-food-grpc / envoy should be UP).
+
+Shared state check (needs the round-robin stage): `python3 experiments/a3/shared_state_check.py`
+
+### Baseline (Part B) and round robin (Part C)
+
+Same workload every time; wait ~20 s between runs. The tag becomes the request-ID prefix.
+
+```bash
+pip install grpcio protobuf                         # for the gRPC client (generated stubs are in api/)
+python3 experiments/a3/loadgen.py --op http --rate 50 --duration 60 --tag b-baseline-http
+python3 experiments/a3/loadgen.py --op grpc --rate 50 --duration 60 --tag b-baseline-grpc
+
+python3 envoy/render.py rr && docker compose up -d --no-deps --force-recreate envoy
+python3 experiments/a3/loadgen.py --op http --rate 50 --duration 60 --tag c-rr-http
+python3 experiments/a3/loadgen.py --op grpc --rate 50 --duration 60 --tag c-rr-grpc
+python3 experiments/a3/summarize.py experiments/a3/results/c-rr-*.json
+```
+
+Kibana search that returns the Envoy event and the replica's event together (Discover, data view "Campus food logs"):
+`trace_id : "c-rr-http-17"` (HTTP) or `trace_id : "c-rr-grpc-17"` (gRPC). Envoy's event has `envoy.replica` and
+`envoy.upstream_host`; the replica's has `app.replica`.
+
+### Experiments (Part D)  (each: configure, run both interfaces, restore)
+
+```bash
+# D1 weighted round robin 2:1:1
+python3 envoy/render.py weighted && docker compose up -d --no-deps --force-recreate envoy
+python3 experiments/a3/loadgen.py --op http --rate 50 --duration 60 --tag d1-weighted-http
+python3 experiments/a3/loadgen.py --op grpc --rate 50 --duration 60 --tag d1-weighted-grpc
+
+# D2 delay on B, round robin then least request (same delay, same workload)
+python3 envoy/render.py rr && docker compose up -d --no-deps --force-recreate envoy
+scripts/replica-delay.sh B 200
+python3 experiments/a3/loadgen.py --op http --rate 50 --duration 60 --tag d2-rr-delay-http
+python3 experiments/a3/loadgen.py --op grpc --rate 50 --duration 60 --tag d2-rr-delay-grpc
+python3 envoy/render.py least-request && docker compose up -d --no-deps --force-recreate envoy
+python3 experiments/a3/loadgen.py --op http --rate 50 --duration 60 --tag d2-lr-delay-http
+python3 experiments/a3/loadgen.py --op grpc --rate 50 --duration 60 --tag d2-lr-delay-grpc
+scripts/replica-delay.sh B 0
+
+# D3 failure and recovery (health checks on). Terminal 1 runs the load, terminal 2 acts at the marked times.
+python3 envoy/render.py rr --health-checks && docker compose up -d --no-deps --force-recreate envoy
+python3 experiments/a3/loadgen.py --op http --rate 50 --duration 90 --tag d3-fail-http     # terminal 1
+#   t = 20 s:  docker stop campus-food-app-2          (watch: curl -s localhost:9901/clusters | grep health_flags)
+#   t = 50 s:  docker start campus-food-app-2
+python3 experiments/a3/loadgen.py --op grpc --rate 50 --duration 90 --tag d3-fail-grpc     # repeat for gRPC
+```
+
+`summarize.py` prints shares from the client, from Prometheus (replica counters) and from Envoy's access log in
+Elasticsearch, so one run can be checked against the logs for the same time range.
+
+### Recovery (back to the normal Part C state)
+
+```bash
+scripts/replica-delay.sh B 0                         # remove any injected delay
+docker compose up -d --scale app=3                   # restart any stopped replica
+python3 envoy/render.py rr && docker compose up -d --no-deps --force-recreate envoy
+docker compose logs app | grep '"event":"launcher"'  # still A, B, C?
+curl -s localhost:9901/clusters | grep -E "health_flags"   # all healthy
+```
+
+Troubleshooting: if replica labels in logs are hex ids instead of A/B/C, reverse DNS inside the container failed
+(set `REPLICA_ID` per container instead); Prometheus labels A/B/C do not depend on it. Retries and circuit breakers
+are off in every generated config (see the header of `envoy/render.py`); the test client never retries.
