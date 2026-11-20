@@ -10,17 +10,20 @@ import uuid
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from .. import config
 from .logs import log_event, request_id_var
 from .metrics import HTTP_DURATION, HTTP_IN_PROGRESS, HTTP_REQUESTS
 
 logger = logging.getLogger("campus.http")
-SKIP_PATHS = {"/metrics"}  # Prometheus scrapes would drown the real traffic
+SKIP_PATHS = {"/metrics", "/health"}  # scrapes and Envoy health checks would drown the real traffic
 
 
 class ObservabilityMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         if request.url.path in SKIP_PATHS:
-            return await call_next(request)
+            response = await call_next(request)
+            response.headers["X-Replica"] = config.REPLICA_ID
+            return response
 
         request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:16]
         token = request_id_var.set(request_id)
@@ -34,6 +37,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
                 logger.error("unhandled exception", exc_info=True, extra={"fields": {"event": "unhandled_exception"}})
                 response = JSONResponse({"detail": "internal error"}, status_code=500)
             response.headers["X-Request-ID"] = request_id
+            response.headers["X-Replica"] = config.REPLICA_ID  # Envoy logs it: which replica answered
 
             # Use the route template (/eateries/{eatery_id}/menu), never the raw path.
             # Raw paths contain IDs and would create one time series per ID.

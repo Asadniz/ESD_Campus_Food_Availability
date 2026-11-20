@@ -22,6 +22,7 @@ class JsonFormatter(logging.Formatter):
         doc = {
             "time": when.strftime("%Y-%m-%dT%H:%M:%S.") + f"{int(record.msecs):03d}Z",
             "service": config.SERVICE_NAME,
+            "replica": config.REPLICA_ID,
             "severity": record.levelname,
             "message": record.getMessage(),
         }

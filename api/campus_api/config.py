@@ -2,6 +2,12 @@
 import os
 
 SERVICE_NAME = os.getenv("SERVICE_NAME", "campus-food-api")
+# Which replica this is (A, B, C...). The launcher sets it for every container; "single" when the app
+# is run on its own (tests, python -m campus_api.main).
+REPLICA_ID = os.getenv("REPLICA_ID", "single")
+# Per-replica gRPC delay switch (Assignment 3 experiments): if this file exists and holds a number,
+# every CreateHold on this replica sleeps that many ms. Written by campus_api.faultctl.
+GRPC_DELAY_FILE = os.getenv("GRPC_DELAY_FILE", "/tmp/grpc_delay_ms")
 DB_PATH = os.getenv("DB_PATH", "/data/campus.db")
 
 # Staff endpoints (availability updates, fault injection) need this header value.

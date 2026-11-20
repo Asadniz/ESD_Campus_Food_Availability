@@ -16,6 +16,7 @@ logger = logging.getLogger("campus.jobs")
 def expire_stale_holds() -> None:
     cutoff = time.time() - config.HOLD_EXPIRY_SECONDS
     with db.session() as conn:
+        conn.execute("BEGIN IMMEDIATE")   # every replica runs this job: the first takes the lock, the rest see no stale holds
         stale = conn.execute(
             "SELECT h.id, e.slug AS eatery FROM holds h JOIN eateries e ON e.id = h.eatery_id "
             "WHERE h.status = 'active' AND h.created_at < ?", (cutoff,),
@@ -33,6 +34,7 @@ def daily_menu_reset() -> None:
     local_now = datetime.now(timezone.utc) + timedelta(hours=config.LOCAL_UTC_OFFSET_HOURS)
     today = local_now.date().isoformat()
     with db.session() as conn:
+        conn.execute("BEGIN IMMEDIATE")   # check-then-reset must be atomic, or two replicas reset the menu twice
         row = conn.execute("SELECT value FROM meta WHERE key = 'last_reset_date'").fetchone()
         if (row and row["value"] == today) or local_now.hour < config.DAILY_RESET_HOUR:
             JOB_LAST_RUN.labels("daily_reset").set(time.time())

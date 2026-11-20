@@ -48,6 +48,18 @@ class RpcAbort(Exception):
         super().__init__(message)
 
 
+def _file_delay() -> None:
+    """Per-replica delay set with `python -m campus_api.faultctl` (Assignment 3). Cheap: one failed open()
+    per call when the switch is off."""
+    try:
+        with open(config.GRPC_DELAY_FILE) as f:
+            delay_ms = min(max(int(f.read().strip()), 0), MAX_FAULT_DELAY_MS)
+    except (OSError, ValueError):
+        return
+    if delay_ms:
+        time.sleep(delay_ms / 1000)
+
+
 def _inject_delay(context) -> None:
     """Test switch for the in-flight gauge (like A1's /admin/faults): a call that carries the staff key
     in `x-staff-key` and a delay in `x-fault-delay-ms` metadata sleeps that long (capped). Without the
@@ -68,6 +80,7 @@ def _inject_delay(context) -> None:
 
 class HoldServicer(holds_pb2_grpc.HoldServiceServicer):
     def CreateHold(self, request, context):
+        _file_delay()
         _inject_delay(context)
         fields = {"item_id": request.item_id}
         if request.HasField("pickup_in_minutes"):  # unset -> the model's default (180), as in HTTP
@@ -119,7 +132,7 @@ class ObservabilityInterceptor(grpc.ServerInterceptor):
             status = grpc.StatusCode.OK
             metrics.GRPC_IN_PROGRESS.labels(short).inc()
             try:
-                context.send_initial_metadata((("x-request-id", request_id),))
+                context.send_initial_metadata((("x-request-id", request_id), ("x-replica", config.REPLICA_ID)))
                 return inner(request, context)
             except RpcAbort as exc:
                 status = exc.status

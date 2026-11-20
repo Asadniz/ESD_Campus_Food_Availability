@@ -1,4 +1,5 @@
-"""In-memory sliding-window rate limiter (single instance only: state is lost on restart and not shared)."""
+"""In-memory sliding-window rate limiter. State is per replica: it is lost on restart and NOT shared, so with
+N replicas behind a round-robin balancer the effective limit is about N x the configured one (see docs/A3_REPORT.md)."""
 import logging
 import math
 import os
@@ -29,7 +30,14 @@ class SlidingWindowLimiter:
             self._hits.clear()
 
     def __call__(self, request: Request) -> None:  # used as a FastAPI dependency
-        client = request.client.host if request.client else "unknown"
+        # Behind Envoy every request comes from Envoy's IP, so key on the address Envoy appended to
+        # X-Forwarded-For (the LAST entry; earlier entries are client-supplied and spoofable).
+        # Replicas are not published to the host, so only Envoy can reach this header.
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            client = forwarded.split(",")[-1].strip()
+        else:
+            client = request.client.host if request.client else "unknown"
         now = time.monotonic()
         with self._lock:
             hits = self._hits[client]

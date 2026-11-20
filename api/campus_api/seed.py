@@ -25,6 +25,8 @@ ITEMS = [
 
 def seed_if_empty() -> None:
     with db.session() as conn:
+        # Several replicas start at once: take the write lock first so exactly one of them seeds.
+        conn.execute("BEGIN IMMEDIATE")
         if conn.execute("SELECT COUNT(*) FROM eateries").fetchone()[0]:
             return
         conn.executemany("INSERT INTO eateries VALUES (?,?,?,?)", EATERIES)
