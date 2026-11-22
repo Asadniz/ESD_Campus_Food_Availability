@@ -46,7 +46,8 @@ class Recorder:
             self.rows.append((ok, status, latency, replica, at))
 
 
-def run_http(args, rec, total, t0):
+def run_http(args, rec, total, clock):
+    t0 = clock["t0"]
     local = threading.local()
 
     def conn():
@@ -77,7 +78,7 @@ def run_http(args, rec, total, t0):
     return lag
 
 
-def run_grpc(args, rec, total, t0):
+def run_grpc(args, rec, total, clock):
     import grpc
     import requests
     from campus_api.rpc import holds_pb2, holds_pb2_grpc
@@ -87,6 +88,9 @@ def run_grpc(args, rec, total, t0):
     key = f"{args.tag}-fixed-key"
     first = stub.CreateHold(holds_pb2.CreateHoldRequest(item_id=1, idempotency_key=key), timeout=args.timeout,
                             metadata=[("x-request-id", f"{args.tag}-setup")])
+    # Start the schedule only now: opening the channel and the setup call must not count as lateness.
+    clock["t0"] = t0 = time.perf_counter()
+    clock["wall0"] = time.time()
     done = threading.Semaphore(0)
 
     def make_cb(fut, started):  # t0 comes from the enclosing run_grpc argument
@@ -134,11 +138,10 @@ def main():
     total = int(args.rate * args.duration)
     rec = Recorder()
     print(f"{args.tag}: {args.op} target {args.rate:g} rps for {args.duration:g}s = {total} requests", flush=True)
-    t0 = time.perf_counter()
-    wall0 = time.time()
-    lag = (run_http if args.op == "http" else run_grpc)(args, rec, total, t0)
+    clock = {"t0": time.perf_counter(), "wall0": time.time()}   # gRPC restarts it after its setup call
+    lag = (run_http if args.op == "http" else run_grpc)(args, rec, total, clock)
     wall1 = time.time()
-    elapsed = time.perf_counter() - t0
+    wall0 = clock["wall0"]
 
     ok = [r for r in rec.rows if r[0]]
     bad = [r for r in rec.rows if not r[0]]
