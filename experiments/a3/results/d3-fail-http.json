@@ -1,0 +1,32 @@
+{
+ "tag": "d3-fail-http",
+ "op": "http",
+ "target_rps": 50.0,
+ "duration_s": 90.0,
+ "start_epoch": 1795293428.6991954,
+ "end_epoch": 1795293518.6991954,
+ "finished_epoch": 1795293518.685267,
+ "sent": 4500,
+ "completed": 4500,
+ "successes": 4419,
+ "failures": 81,
+ "error_rate": 0.018,
+ "actual_send_rps": 50.0,
+ "max_send_lag_ms": 1.8,
+ "statuses": {
+  "200": 4419,
+  "503": 81
+ },
+ "client_p50_ms": 4.3,
+ "client_p95_ms": 6.1,
+ "client_p99_ms": 7.9,
+ "client_p95_all_ms": 6.4,
+ "first_failure_at_s": 20.0,
+ "last_failure_at_s": 24.8,
+ "replicas_seen_by_client": {
+  "A": 1729,
+  "B": 960,
+  "C": 1730,
+  "?": 81
+ }
+}

@@ -1,0 +1,28 @@
+{
+ "tag": "b-baseline-grpc",
+ "op": "grpc",
+ "target_rps": 50.0,
+ "duration_s": 60.0,
+ "start_epoch": 1795240721.7422383,
+ "end_epoch": 1795240781.7422383,
+ "finished_epoch": 1795240781.7426474,
+ "sent": 3000,
+ "completed": 3000,
+ "successes": 3000,
+ "failures": 0,
+ "error_rate": 0.0,
+ "actual_send_rps": 50.0,
+ "max_send_lag_ms": 2.2,
+ "statuses": {
+  "OK": 3000
+ },
+ "client_p50_ms": 4.7,
+ "client_p95_ms": 9.1,
+ "client_p99_ms": 14.8,
+ "client_p95_all_ms": 9.1,
+ "first_failure_at_s": null,
+ "last_failure_at_s": null,
+ "replicas_seen_by_client": {
+  "A": 3000
+ }
+}

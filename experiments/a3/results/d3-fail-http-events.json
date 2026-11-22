@@ -1,0 +1,8 @@
+{
+ "tag": "d3-fail-http",
+ "stop_cmd": "docker stop campus-food-app-2",
+ "start_cmd": "docker start campus-food-app-2",
+ "stop_epoch": 1795293448.5058572,
+ "stop_returned_epoch": 1795293449.5051966,
+ "start_epoch": 1795293478.505798
+}

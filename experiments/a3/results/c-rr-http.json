@@ -1,0 +1,30 @@
+{
+ "tag": "c-rr-http",
+ "op": "http",
+ "target_rps": 50.0,
+ "duration_s": 60.0,
+ "start_epoch": 1795241239.7298317,
+ "end_epoch": 1795241299.7298317,
+ "finished_epoch": 1795241299.7153609,
+ "sent": 3000,
+ "completed": 3000,
+ "successes": 3000,
+ "failures": 0,
+ "error_rate": 0.0,
+ "actual_send_rps": 50.0,
+ "max_send_lag_ms": 1.4,
+ "statuses": {
+  "200": 3000
+ },
+ "client_p50_ms": 4.5,
+ "client_p95_ms": 6.7,
+ "client_p99_ms": 10.5,
+ "client_p95_all_ms": 6.7,
+ "first_failure_at_s": null,
+ "last_failure_at_s": null,
+ "replicas_seen_by_client": {
+  "A": 1000,
+  "B": 1000,
+  "C": 1000
+ }
+}

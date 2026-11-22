@@ -1,0 +1,8 @@
+{
+ "tag": "d3-fail-grpc",
+ "stop_cmd": "docker stop campus-food-app-2",
+ "start_cmd": "docker start campus-food-app-2",
+ "stop_epoch": 1795293563.7349424,
+ "stop_returned_epoch": 1795293564.2433696,
+ "start_epoch": 1795293593.735217
+}

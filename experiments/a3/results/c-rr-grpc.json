@@ -1,0 +1,30 @@
+{
+ "tag": "c-rr-grpc",
+ "op": "grpc",
+ "target_rps": 50.0,
+ "duration_s": 60.0,
+ "start_epoch": 1795241325.2880583,
+ "end_epoch": 1795241385.2880583,
+ "finished_epoch": 1795241385.2995036,
+ "sent": 3000,
+ "completed": 3000,
+ "successes": 3000,
+ "failures": 0,
+ "error_rate": 0.0,
+ "actual_send_rps": 50.0,
+ "max_send_lag_ms": 1.4,
+ "statuses": {
+  "OK": 3000
+ },
+ "client_p50_ms": 4.3,
+ "client_p95_ms": 6.5,
+ "client_p99_ms": 8.9,
+ "client_p95_all_ms": 6.5,
+ "first_failure_at_s": null,
+ "last_failure_at_s": null,
+ "replicas_seen_by_client": {
+  "A": 1000,
+  "C": 1000,
+  "B": 1000
+ }
+}

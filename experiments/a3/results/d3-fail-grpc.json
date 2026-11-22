@@ -1,0 +1,32 @@
+{
+ "tag": "d3-fail-grpc",
+ "op": "grpc",
+ "target_rps": 50.0,
+ "duration_s": 90.0,
+ "start_epoch": 1795293544.750158,
+ "end_epoch": 1795293634.750158,
+ "finished_epoch": 1795293634.7565367,
+ "sent": 4500,
+ "completed": 4500,
+ "successes": 4426,
+ "failures": 74,
+ "error_rate": 0.0164,
+ "actual_send_rps": 50.0,
+ "max_send_lag_ms": 3.6,
+ "statuses": {
+  "OK": 4426,
+  "UNAVAILABLE": 74
+ },
+ "client_p50_ms": 4.6,
+ "client_p95_ms": 9.8,
+ "client_p99_ms": 28.9,
+ "client_p95_all_ms": 11.3,
+ "first_failure_at_s": 19.1,
+ "last_failure_at_s": 23.5,
+ "replicas_seen_by_client": {
+  "B": 890,
+  "A": 1768,
+  "C": 1768,
+  "?": 74
+ }
+}
