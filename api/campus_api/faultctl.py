@@ -14,6 +14,7 @@ import sys
 import urllib.request
 
 from . import config
+from .launcher import resolve_replica_id
 
 
 def main() -> int:
@@ -35,7 +36,7 @@ def main() -> int:
         except FileNotFoundError:
             pass
     with urllib.request.urlopen(req, timeout=5) as resp:
-        print(f"replica {config.REPLICA_ID}: delay={ms} ms, http answered {resp.status}: {resp.read().decode()}")
+        print(f"replica {resolve_replica_id()}: delay={ms} ms, http answered {resp.status}: {resp.read().decode()}")
     return 0
 
 

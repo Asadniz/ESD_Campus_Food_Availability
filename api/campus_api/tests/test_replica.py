@@ -1,11 +1,24 @@
 """Assignment 3: replica identity, proxy-aware rate limiting."""
-from campus_api.launcher import replica_from_name
+from campus_api.launcher import replica_by_forward_dns, replica_from_name
 
 
 def test_replica_letter_from_compose_container_name():
     assert replica_from_name("campus-food-app-1.campus-food_default") == "A"
     assert replica_from_name("campus-food-app-3") == "C"
     assert replica_from_name("3f9a1c2b7d10") is None   # plain container id: no index
+
+
+def test_replica_letter_from_forward_dns():
+    table = {"campus-food-app-1": "172.18.0.2", "campus-food-app-2": "172.18.0.3", "campus-food-app-3": "172.18.0.4"}
+
+    def resolve(name):
+        if name not in table:
+            raise OSError("no such name")
+        return table[name]
+
+    assert replica_by_forward_dns("172.18.0.2", "campus-food-app-", resolve) == "A"
+    assert replica_by_forward_dns("172.18.0.4", "campus-food-app-", resolve) == "C"
+    assert replica_by_forward_dns("10.9.9.9", "campus-food-app-", resolve) is None
 
 
 def test_http_response_names_the_replica(client):
