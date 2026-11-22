@@ -26,6 +26,9 @@ HC_TIMEOUT = "1s"
 HC_UNHEALTHY = 2     # consecutive failures before a replica is taken out
 HC_HEALTHY = 2       # consecutive successes before a replica that was out comes back
 HC_PATH = "/health"
+# Envoy checks a cluster that has never had traffic only every no_traffic_interval (default 60 s!). Right after
+# Envoy starts, that would make the first minute of checks 30x slower than "interval", so set it equal.
+HC_NO_TRAFFIC = HC_INTERVAL
 DNS_REFRESH = "5s"
 
 
@@ -45,6 +48,8 @@ def cluster(name, port, hc_port, policy, endpoints, health_checks, http2, choice
     health_checks:
       - timeout: {HC_TIMEOUT}
         interval: {HC_INTERVAL}
+        no_traffic_interval: {HC_NO_TRAFFIC}
+        unhealthy_interval: {HC_INTERVAL}
         unhealthy_threshold: {HC_UNHEALTHY}
         healthy_threshold: {HC_HEALTHY}
         always_log_health_check_failures: true
