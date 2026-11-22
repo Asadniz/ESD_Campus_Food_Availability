@@ -21,9 +21,9 @@ def call(base, method, path, body=None, headers=None):
                                  headers={"Content-Type": "application/json", **(headers or {})})
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
-            return r.status, dict(r.headers), json.load(r)
+            return r.status, {k.lower(): v for k, v in r.headers.items()}, json.load(r)
     except urllib.error.HTTPError as e:
-        return e.code, dict(e.headers), json.load(e)
+        return e.code, {k.lower(): v for k, v in e.headers.items()}, json.load(e)
 
 
 def main():
@@ -36,10 +36,11 @@ def main():
     for i in range(9):
         st, h, b = call(base, "POST", "/holds", {"item_id": 1}, {"Idempotency-Key": "a3-demo-key", "X-Request-ID": f"a3-idem-{i}"})
         ids.add(b.get("id"))
-        who.append(h.get("X-Replica"))
-        replays += h.get("Idempotent-Replayed") == "true"
+        who.append(h.get("x-replica"))
+        replays += h.get("idempotent-replayed") == "true"
     print(f"   answered by replicas {who}\n   distinct hold ids: {ids}  replays: {replays}/9")
-    print("   PASS: one hold, shared idempotency records" if len(ids) == 1 and replays == 8 else "   FAIL (or key reused from an earlier run: change the key)")
+    # a fresh key gives 1 creation + 8 replays; a key used in an earlier run gives 9 replays: both mean "one hold"
+    print("   PASS: one hold, shared idempotency records" if len(ids) == 1 and replays >= 8 else "   FAIL: more than one hold, or the replay flag is missing")
     for hid in ids:
         call(base, "POST", f"/holds/{hid}/cancel")
 
