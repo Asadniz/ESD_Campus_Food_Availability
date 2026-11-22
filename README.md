@@ -385,3 +385,20 @@ curl -s localhost:9901/clusters | grep -E "health_flags"   # all healthy
 Troubleshooting: if replica labels in logs are hex ids instead of A/B/C, reverse DNS inside the container failed
 (set `REPLICA_ID` per container instead); Prometheus labels A/B/C do not depend on it. Retries and circuit breakers
 are off in every generated config (see the header of `envoy/render.py`); the test client never retries.
+
+### Evidence: charts, screenshots, log examples
+
+```bash
+pip install matplotlib playwright && python -m playwright install chromium
+python experiments/a3/run_all.py                                   # all runs in order (about 40 minutes), restores state at the end
+python experiments/a3/summarize.py experiments/a3/results/*-http.json experiments/a3/results/*-grpc.json
+python experiments/a3/charts.py experiments/a3/results/*-http.json experiments/a3/results/*-grpc.json   # docs/img/a3/<tag>.png
+python experiments/a3/grafana_shots.py experiments/a3/results/*-http.json experiments/a3/results/*-grpc.json   # docs/img/a3/<tag>-grafana.png
+python experiments/a3/failure_timeline.py d3-fail-http d3-fail-grpc   # removal / recovery time of replica B from Envoy's log
+python experiments/a3/shared_state_check.py                        # idempotency shared, rate limit per replica
+python experiments/a3/log_pair.py c-rr-http-17 --md                # proxy + replica event for one request
+```
+`run_all.py --only rr` (or `baseline weighted delay failure`) repeats a single stage. Export the dashboard from Grafana
+(Share > Export > JSON) if you changed it; the provisioned one is `monitoring/grafana/dashboards/a3-load-balancing.json`.
+On Windows run the Python scripts directly; `scripts/replica-delay.sh` needs LF line endings (use
+`docker compose exec -T --index 2 app python -m campus_api.faultctl 200` instead).
